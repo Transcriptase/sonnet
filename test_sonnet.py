@@ -6,6 +6,7 @@ import sonnet as snt
 import random
 
 listmaker = snt.CommonWordListMaker()
+templates = snt.TemplateReader("line_templates.csv", listmaker).read()
 
 class TestWord(object):
     def test_look_up(self):
@@ -160,7 +161,53 @@ class TestTemplate(object):
         ok_(isinstance(a.populate(), snt.Line))
 
     def test_template_reader(self):
-        r = snt.TemplateReader("line_templates.csv", listmaker)
-        t = r.read()
+        t = templates
         ok_(isinstance(t, list))
         ok_(isinstance(t[0], snt.Template))
+        ok_(not t[0].intro_required)
+        ok_(not t[0].intro)
+        eq_(t[10].intro_required, "NP")
+        eq_(t[10].intro, "VP")
+
+class TestSonnetWriter(object):
+    def test_match_transitions(self):
+        sw = snt.SonnetWriter()
+        t1 = templates[0]
+        #No transitions, should not be extended
+        matched_t1 = sw.match_transitions(t1, templates)
+        eq_(len(matched_t1), 1)
+
+        t2 = templates[10]
+        #Needs intro, no outro
+        matched_t2 = sw.match_transitions(t2, templates)
+        eq_(len(matched_t2), 2)
+        eq_(matched_t2[-1], t2)
+        #Should be last in the list since no outro will be added
+
+    def test_pick_lines(self):
+        sw = snt.SonnetWriter()
+        sw.pick_lines(templates)
+        #Should return a list of lists of templates, with 14 total templates
+        ok_(isinstance(sw.lines, list))
+        ok_(isinstance(sw.lines[0], list))
+        ok_(isinstance(sw.lines[0][0], snt.Template))
+        eq_(sum([len(line_list) for line_list in sw.lines]), 14)
+
+    def test_arrange_lines(self):
+        sw = snt.SonnetWriter()
+        sw.pick_lines(templates)
+        sw.arrange_lines()
+        eq_(len(sw.couplet), 2)
+        eq_(len(sw.quatrains), 3)
+        for quatrain in sw.quatrains:
+            eq_(len(quatrain), 4)
+            ok_(not quatrain[0].intro_required)
+            ok_(not quatrain[-1].outro_required)
+
+    def test_populate(self):
+        sw = snt.SonnetWriter()
+        sw.pick_lines(templates)
+        sw.arrange_lines()
+        sw.populate()
+        eq_(len(sw.filled_sonnet), 14)
+

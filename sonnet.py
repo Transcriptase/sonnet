@@ -180,9 +180,13 @@ class Line(object):
 class Template(object):
     """A Template for a Line we hope to fill
     with some convincing fakery of skill."""
-    def __init__(self, raw_text, blanks):
+    def __init__(self, raw_text, blanks, intro_required = False, outro_required = False, intro = False, outro = False):
         self.raw_text = raw_text
         self.blanks = blanks
+        self.intro = intro
+        self.outro = outro
+        self.intro_required = intro_required
+        self.outro_required = outro_required
 
     def populate(self):
         choices = ["" for blank in self.blanks]
@@ -201,12 +205,20 @@ class Template(object):
         return candidate
 
 
-    def make_scanning_line(self):
+
+    def make_scanning_line(self, attempts = 50):
         finished = False
-        while not finished:
+        give_up = False
+        fail_count = 0
+        while not finished and not give_up:
             candidate = self.populate()
             if candidate.scans():
                 return candidate
+            else:
+                fail_count += 1
+            if fail_count >= attempts:
+                give_up = True
+                logging.warning("No scanning completions found for template: {}".format(self.raw_text))
 
     def make_candidates(self, depth = 20):
         self.candidates = [self.make_scanning_line() for ii in xrange(depth)]
@@ -227,9 +239,19 @@ class TemplateReader(object):
             for row in reader:
                 tags = row["pos_tags"].split()
                 optional_flags = row["optional"].split()
+                intro = self.translate_tags(row["intro"])
+                outro = self.translate_tags(row["outro"])
+                intro_required = self.translate_tags(row["intro_required"])
+                outro_required = self.translate_tags(row["outro_required"])
                 blanks = [Blank(tag, self.list_maker, optional = (opt_flag == "T")) for tag, opt_flag in zip(tags, optional_flags)]
-                templates.append(Template(row["raw_text"], blanks))
+                templates.append(Template(row["raw_text"], blanks, intro = intro, outro = outro, intro_required = intro_required, outro_required = outro_required))
         return templates
+
+    def translate_tags(self, tag):
+        if tag == "F":
+            return False
+        else:
+            return tag
 
         
 
@@ -249,9 +271,96 @@ class Blank(object):
     def fill(self):
         return random.choice(self.pool)
 
-        
+class SonnetWriter(object):
+    """docstring for SonnetWriter"""
+    def __init__(self):
+      self.lines = []
+      self.quatrains = []
+      self.couplet = []
 
+    def pick_lines(self, templates):
+        self.lines = []
+        lines_added = 0
+        while lines_added < 14:
+            new_template = random.choice(templates)
+            new_lines = self.match_transitions(new_template, templates)
+            if new_lines:
+                if lines_added + len(new_lines) <= 14:
+                    self.lines.append(new_lines)
+                    lines_added += len(new_lines)
+                    templates = [template for template in templates if template not in new_lines]
+                    #remove used templates from pool
 
+    def match_transitions(self, start_template, all_templates):
+        complete_sentence = [start_template]
+        while complete_sentence[0].intro_required:
+            candidates = [template for template in all_templates if template.outro == complete_sentence[0].intro_required]
+            try:
+                intro = random.choice(candidates)
+                complete_sentence.insert(0, intro)
+            except IndexError:
+                logging.warning("No {} match found for template: {}".format(start_template.intro_required, start_template.raw_text))
+                return False
+        while complete_sentence[-1].outro_required:
+            candidates = [template for template in all_templates if template.intro == complete_sentence[-1].outro_required]
+            try:
+                outro = random.choice(candidates)
+                complete_sentence.append(outro)
+            except IndexError:
+                logging.warning("No {} match found for template: {}".format(start_template.outro_required, start_template.raw_text))
+                return false
+        return complete_sentence
+
+    def arrange_lines(self):
+        self.quatrains = []
+        self.couplet = []
+        while len(self.couplet) < 2:
+            couplet_candidate = random.choice(self.lines)
+            if len(self.couplet) + len(couplet_candidate) <= 2:
+                self.couplet.extend(couplet_candidate)
+                self.lines.remove(couplet_candidate)
+        for ii in xrange(3):
+            new_quatrain = []
+            while len(new_quatrain) < 4:
+                quatrain_candidate = random.choice(self.lines)
+                if len(new_quatrain) + len(quatrain_candidate) <= 4:
+                    new_quatrain.extend(quatrain_candidate)
+                    self.lines.remove(quatrain_candidate)
+            self.quatrains.append(new_quatrain)
+
+    def pick_rhymes(self, line1, line2, retries = 5):
+        finished = False
+        give_up = False
+        fail_count = 0
+        line1.make_candidates()
+        line2.make_candidates()
+        while not finished and not give_up:
+            for candidate1 in line1.candidates:
+                for candidate2 in line2.candidates:
+                    if candidate1.rhymes_with(candidate2):
+                        return (candidate1, candidate2)
+                        finished = True
+            fail_count += 1
+            line1.more_candidates()
+            line2.more_candidates()
+            if fail_count >= retries:
+                give_up = True
+                logging.warning("No rhymes found for lines:\n {}\n {}".format(line1.raw_text, line2.raw_text))
+
+    def populate(self):
+        self.filled_sonnet = []
+        for quatrain in self.quatrains:
+            filled_quat = ["unfilled line" for line in quatrain]
+            filled_quat[0], filled_quat[2] = self.pick_rhymes(quatrain[0], quatrain[2])
+            filled_quat[1], filled_quat[3] = self.pick_rhymes(quatrain[1], quatrain[3])
+            self.filled_sonnet.extend(filled_quat)
+        filled_couplet = ["unfilled line" for line in self.couplet]
+        filled_couplet[0], filled_couplet[1] = self.pick_rhymes(self.couplet[0], self.couplet[1])
+        self.filled_sonnet.extend(filled_couplet)
+
+    def display(self):
+        for line in self.filled_sonnet:
+            print line.text
 
 class CommonWordListMaker(object):
     '''Processes the Brown corpus to find the most common
@@ -276,10 +385,10 @@ class CoupletMaker(object):
         self.all_templates = templates
 
     def generate(self):
-        templates = random.sample(self.all_templates, 2)
-        for template in templates:
+        self.templates = random.sample(self.all_templates, 2)
+        for template in self.templates:
             template.make_candidates()
-        self.couplet = self.pick_rhymes(templates[0], templates[1])
+        self.couplet = self.pick_rhymes(self.templates[0], self.templates[1])
 
     def pick_rhymes(self, line1, line2, retries = 3):
         finished = False

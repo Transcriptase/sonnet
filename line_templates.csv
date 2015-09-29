@@ -1,15 +1,22 @@
-raw_text,pos_tags,optional,intro required,intro allowed,outro required,outro allowed,intro,outro
-Let's go and {} some {} we can't {}., VB NN VB,F F F F,F,F,F,F,F,F
-Your {} is as {} as the {} you {}.,NN JJ NN VB,F F F F,F,F,F,F,F,F
-"Another {}{}, another {}{}",JJ NN JJ NN,T F T F,F,VP,F,VP,NP,NP
-You {} your {} just to watch them {},VB NNS VB,F F F F,F,F,F,F,F,F
-Your {} is a {} {}.,NN JJ NN,F F F,F,F,F,F,F,F
-A {} is a {} that never {}.,NN NN VBD,F F F,F,F,F,F,F,F
-The {} {} and the {} {}.,NN VBD NN VBD,F F F F,F,F,F,F,F,F
-"Be {}: {}, {}, {}.",JJ VB VB VB,F F F F,F,F,F,F,F,F
-The {} {} couldn't {}.,JJT NN VB,F F F,F,F,F,NP,F,VP
-"Each {}{}, each {}{}",JJ NN JJ NN,T F T F,F,VP,F,VP,NP,NP
-is just a {}{} in a {}.,JJ NN NN,T F F,NP,NP,F,F,VP,F
-{} like {}{}.,VBD JJ NNS,F T F,NP,NP,F,F,VP,F
-"Your {} was {}{},",NN JJ NN,F T F,F,F,S1,S1,F,S1
-and my {} was {}{}.,NN JJ NN,F T F,S1,S1,F,F,S1,F
+raw_text,pos_tags,optional,intro_required,outro_required,intro,outro
+Let's go and {} some {} we can't {}.,VB NN VB,F F F F,F,F,F,F
+Your {} is as {} as the {} you {}.,NN JJ NN VB,F F F F,F,F,F,F
+"Another {}{}, another {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
+You {} your {} just to watch them {},VB NNS VB,F F F F,F,F,F,F
+Your {} is a {} {}.,NN JJ NN,F F F,F,F,F,F
+A {} is a {} that never {}.,NN NN VBD,F F F,F,F,F,F
+The {} {} and the {} {}.,NN VBD NN VBD,F F F F,F,F,F,F
+"Be {}: {}, {}, {}.",JJ VB VB VB,F F F F,F,F,F,F
+The {} {} couldn't {},JJT NN VB,F F F,F,F,F,VP
+"Each {}{}, each {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
+is just a {}{} in a {}.,JJ NN NN,T F F,NP,F,VP,F
+{} like {}{}: {} and {}.,VBD JJ NNS JJ JJ,F T F F F,NP,F,VP,F
+"Your {} was {}{},",NN JJ NN,F T F,F,S1,F,S1
+and my {} was {}{}.,NN JJ NN,F T F,S1,F,S1,F
+Remember {}: {} and {},NN NN NN,F F F,F,F,F,NP
+Is this {} what it takes to {}?,NN VB,F F,F,F,F,F
+"One more {}{}, one more {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
+no {} and no {} I could {}.,NN NN VB,F F F,VP,F,NP,F
+"It {} {}, {} {}, and {}",VBZ NN VBZ NN VBZ,F F F F F,F,F,F,VP
+"{}{} make {}{} out of {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,S2,F,S2
+And {} makes the {} all seem {}.,NN NNS JJ,FF FF FF,S2,F,S2,F
