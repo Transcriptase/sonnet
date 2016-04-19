@@ -33,8 +33,10 @@ class Word(object):
         try:
             pronunciations = dictionary[self.text]
         except KeyError:
+            self.not_in_dict = True
             logging.debug("Word \'{}\' not found in CMU dictionary.".format(self.text))
             return
+        self.not_in_dict = False
         if len(pronunciations) > 1:
             self.multi_prons = True
             self.pron = pronunciations
@@ -123,7 +125,7 @@ class Line(object):
                 cont_index = word_list.index(contraction)
                 word_list[cont_index -1] = "".join([word_list[cont_index-1], contraction])
                 word_list.pop(cont_index)
-        strippable_punc = [".", ",", ":", "(", ")", ";", "?", "!", "\"", "", "''", "``"]
+        strippable_punc = [".", ",", ":", "(", ")", ";", "?", "!", "\"", "", "''", "``", "'"]
         word_list = [word for word in word_list if word not in strippable_punc]
         self.word_list = [Word(word) for word in word_list]
 
@@ -204,9 +206,7 @@ class Template(object):
             candidate = Line(self.raw_text.format(*choices))
         return candidate
 
-
-
-    def make_scanning_line(self, attempts = 50):
+    def make_scanning_line(self, attempts = 10000):
         finished = False
         give_up = False
         fail_count = 0
@@ -226,11 +226,15 @@ class Template(object):
     def more_candidates(self, depth = 10):
         self.candidates.extend([self.make_scanning_line() for ii in xrange(depth)])
 
+    def is_flexible(self):
+        return not any(c.isalpha() for c in self.raw_text.split("{}")[-1])
+        #Convoluted, but checks to see if there is a word after the last blank
+        #(Split on the blanks, grab the last section, see if there are any letters in it)
+
 class TemplateReader(object):
     """Pulls Templates from a file"""
-    def __init__(self, filename, list_maker):
+    def __init__(self, filename):
         self.filename = filename
-        self.list_maker = list_maker
 
     def read(self):
         templates = []
@@ -243,7 +247,7 @@ class TemplateReader(object):
                 outro = self.translate_tags(row["outro"])
                 intro_required = self.translate_tags(row["intro_required"])
                 outro_required = self.translate_tags(row["outro_required"])
-                blanks = [Blank(tag, self.list_maker, optional = (opt_flag == "T")) for tag, opt_flag in zip(tags, optional_flags)]
+                blanks = [Blank(tag, optional = (opt_flag == "T")) for tag, opt_flag in zip(tags, optional_flags)]
                 templates.append(Template(row["raw_text"], blanks, intro = intro, outro = outro, intro_required = intro_required, outro_required = outro_required))
         return templates
 
@@ -253,30 +257,97 @@ class TemplateReader(object):
         else:
             return tag
 
-        
-
 
 class Blank(object):
     """docstring for Blank"""
-    def __init__(self, pos_tag, pool_maker, optional = False):
-        super(Blank, self).__init__()
+    def __init__(self, pos_tag, optional = False):
         self.pos_tag = pos_tag
         self.optional = optional
-        self.pool_maker = pool_maker
-        self.make_pool()
+        self.rhyme_pool = []
+        self.collection_pool = []
 
-    def make_pool(self):
-        self.pool = self.pool_maker.common_words(self.pos_tag)
+    def make_common_pool(self, vocab):
+        self.common_pool = vocab.common_words(self.pos_tag)
 
-    def fill(self):
-        return random.choice(self.pool)
+    def make_collection_pool(self, vocab):
+        self.collection_pool = vocab.make_collection_pool(self.pos_tag)
+
+    def make_pools(self, vocab):
+        self.make_common_pool(vocab)
+        self.make_collection_pool(vocab)
+
+    def fill(self, collection_prob = 0.4):
+        if self.collection_pool:
+            use_collection = random.random()
+            if use_collection < collection_prob:
+                return random.choice(self.collection_pool)
+        return random.choice(self.common_pool)
+
+    def make_rhyme_pool(self, source_word, vocab):
+        self.rhyme_pool.extend(vocab.rhyming_words(source_word, self.pos_tag))
+
+    def rhyme_fill(self):
+        return random.choice(self.rhyme_pool)
+
+
+class Vocab(object):
+    '''Processes the Brown corpus to find the most common
+    words for each part of speech, and stores the results so
+    the slow lookup only happens once.'''
+    def __init__(self, common_depth = 1000, uncommon_depth = 5000):
+        self.corpus = nltk.corpus.brown.tagged_words()
+        self.cfd = nltk.ConditionalFreqDist((tag, word) for word, tag in self.corpus)
+        self.common_depth = common_depth
+        self.uncommon_depth = uncommon_depth
+        self.common_tag_words = {}
+        self.collection_words = {}
+        self.uncommon_tag_words = {}
+
+    def find_common_words(self, tag, depth):
+        logging.debug("Inititalizing {} to depth {}...".format(tag, depth))
+        return [word for word, count in self.cfd[tag].most_common(depth) if word.lower() in dictionary and word.isalpha()]
+
+    def common_words(self, tag):
+        if tag not in self.common_tag_words.keys():
+            self.common_tag_words[tag] = self.find_common_words(tag, self.common_depth)
+            logging.debug("{} initialized.".format(tag))
+        return self.common_tag_words[tag]
+
+    def make_collection_pool(self, tag):
+        if tag not in self.collection_words.keys():
+            self.collection_words[tag] = []
+        return self.collection_words[tag]
+
+    def add_collection(self, collection):
+        for word, pos_tag in collection:
+            if pos_tag not in self.collection_words.keys():
+                self.collection_words[pos_tag] = []
+            self.collection_words[pos_tag].append(word)
+
+    def rhyming_words(self, source_word, pos_tag):
+        rhymes = [word for word in self.common_words(pos_tag) if source_word.rhymes_with(Word(word))]
+        if not rhymes:
+            logging.warning("No common rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
+            rhymes = [word for word in self.uncommon_words(pos_tag) if source_word.rhymes_with(Word(word))]
+            if not rhymes:
+                logging.warning("No uncommon rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
+        return rhymes
+
+    def uncommon_words(self, tag):
+        if tag not in self.uncommon_tag_words.keys():
+            self.uncommon_tag_words[tag] = self.find_common_words(tag, self.uncommon_depth)
+            logging.debug("{} initialized.".format(tag))
+        return self.uncommon_tag_words[tag]
+
 
 class SonnetWriter(object):
     """docstring for SonnetWriter"""
-    def __init__(self):
-      self.lines = []
-      self.quatrains = []
-      self.couplet = []
+    def __init__(self, vocab = Vocab()):
+        self.vocab = vocab
+        self.lines = []
+        self.quatrains = []
+        self.couplet = []
+        self.fail_count = 0
 
     def pick_lines(self, templates):
         self.lines = []
@@ -308,7 +379,7 @@ class SonnetWriter(object):
                 complete_sentence.append(outro)
             except IndexError:
                 logging.warning("No {} match found for template: {}".format(start_template.outro_required, start_template.raw_text))
-                return false
+                return False
         return complete_sentence
 
     def arrange_lines(self):
@@ -328,58 +399,98 @@ class SonnetWriter(object):
                     self.lines.remove(quatrain_candidate)
             self.quatrains.append(new_quatrain)
 
-    def pick_rhymes(self, line1, line2, retries = 5):
-        finished = False
+    def pick_rhymes(self, template_pair, retries = 5):
         give_up = False
         fail_count = 0
-        line1.make_candidates()
-        line2.make_candidates()
-        while not finished and not give_up:
-            for candidate1 in line1.candidates:
-                for candidate2 in line2.candidates:
-                    if candidate1.rhymes_with(candidate2):
-                        return (candidate1, candidate2)
-                        finished = True
-            fail_count += 1
-            line1.more_candidates()
-            line2.more_candidates()
+        while not give_up:
+            self.force_rhyme_cands(template_pair)
+            rhymes = self.select_rhyming_candidates(template_pair)
+            if rhymes:
+                return random.choice(rhymes)
+            else:
+                fail_count += 1
             if fail_count >= retries:
                 give_up = True
-                logging.warning("No rhymes found for lines:\n {}\n {}".format(line1.raw_text, line2.raw_text))
+                logging.warning("No rhymes found for lines:\n {}\n {}".format(template_pair[0].raw_text, template_pair[1].raw_text))
+
+    def select_rhyming_candidates(self, template_pair):
+        rhyme_pairs = []
+        for candidate1 in template_pair[0].candidates:
+            for candidate2 in template_pair[1].candidates:
+                if candidate1.rhymes_with(candidate2):
+                    rhyme_pairs.append((candidate1, candidate2))
+        return rhyme_pairs
+
+    def pick_hold_template(self, template_pair):
+        nonflexible = [template for template in template_pair if not template.is_flexible()]
+        if len(nonflexible) > 1:
+            logging.warning("Template pair cannot be matched:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text))
+            return
+        if len(nonflexible) == 1:
+            return(nonflexible[0])
+        else:
+            return random.choice(template_pair)
+
+    def force_rhyme_cands(self, template_pair):
+        hold_line = self.pick_hold_template(template_pair)
+        reach_line = template_pair[template_pair.index(hold_line) - 1]
+        #Slightly magic: if hold_line is [0], then -1 gets you [1]
+        #If hold_line is [1], -1 gets you [0]
+        self.make_blank_pools(hold_line)
+        hold_line.make_candidates()
+        last_words = set([cand.word_list[-1] for cand in hold_line.candidates])
+        reach_blank = reach_line.blanks[-1]
+        for word in last_words:
+            reach_blank.make_rhyme_pool(word, self.vocab)
+        if not reach_blank.rhyme_pool:
+            logging.warning("Cannot find rhymes for templates:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text))
+        else:
+            reach_blank.fill = reach_blank.rhyme_fill
+            self.make_blank_pools(reach_line)
+            reach_line.make_candidates()
+
 
     def populate(self):
         self.filled_sonnet = []
         for quatrain in self.quatrains:
             filled_quat = ["unfilled line" for line in quatrain]
-            filled_quat[0], filled_quat[2] = self.pick_rhymes(quatrain[0], quatrain[2])
-            filled_quat[1], filled_quat[3] = self.pick_rhymes(quatrain[1], quatrain[3])
+            filled_quat[0], filled_quat[2] = self.pick_rhymes([quatrain[0], quatrain[2]])
+            filled_quat[1], filled_quat[3] = self.pick_rhymes([quatrain[1], quatrain[3]])
             self.filled_sonnet.extend(filled_quat)
         filled_couplet = ["unfilled line" for line in self.couplet]
-        filled_couplet[0], filled_couplet[1] = self.pick_rhymes(self.couplet[0], self.couplet[1])
+        filled_couplet[0], filled_couplet[1] = self.pick_rhymes([self.couplet[0], self.couplet[1]])
         self.filled_sonnet.extend(filled_couplet)
 
     def display(self):
         for line in self.filled_sonnet:
             print line.text
 
-class CommonWordListMaker(object):
-    '''Processes the Brown corpus to find the most common
-    words for each part of speech, and stores the results so
-    the slow lookup only happens once.'''
-    def __init__(self, depth = 400):
-        self.corpus = nltk.corpus.brown.tagged_words()
-        self.cfd = nltk.ConditionalFreqDist((tag, word) for word, tag in self.corpus)
-        self.depth = depth
-        self.common_tag_words = {}
+    def make_blank_pools(self, line):
+        for blank in line.blanks:
+            blank.make_pools(self.vocab)
 
-    def find_common_words(self, tag):
-        return [word for word, count in self.cfd[tag].most_common(self.depth)]
+class CollectionReader(object):
+    def __init__(self, coll_file):
+        self.coll_file = coll_file
 
-    def common_words(self, tag):
-        if tag not in self.common_tag_words.keys():
-            self.common_tag_words[tag] = [word for word in self.find_common_words(tag) if word.lower() in dictionary.keys()]
-        return self.common_tag_words[tag]
-        
+    def read(self):
+        self.collection = []
+        with open(self.coll_file, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                word = row["word"]
+                pos_tag = row["pos_tag"]
+                pron = row["pron"]
+                self.collection.append((word, pos_tag))
+                if pron:
+                    dictionary[word.lower()] = [pron]
+        return self.collection
+
+    def check(self):
+        for word, pos_tag in self.collection:
+            if Word(word).not_in_dict:
+                print ("{} not found in CMU dict. Enter custom pronounciation in file.".format(word))
+
 class CoupletMaker(object):
     def __init__(self, templates):
         self.all_templates = templates
@@ -408,17 +519,16 @@ class CoupletMaker(object):
                 give_up = True
 
 if __name__ == '__main__':
-    vocab = CommonWordListMaker()
-    reader = TemplateReader("line_templates.csv", vocab)
+    vocab = Vocab()
+    reader = TemplateReader("line_templates.csv")
     templates = reader.read()
-    cm = CoupletMaker(templates)
+    sw = SonnetWriter()
     finished = False
     while not finished:
-        cm.generate()
-        for line in cm.couplet:
-            print line.text
-        another = raw_input("Another couplet? (Y/N)")
-        if another != "y":
+        sw.pick_lines(templates)
+        sw.arrange_lines()
+        sw.populate()
+        sw.display()
+        prompt = raw_input("\nAnother? (y/n)")
+        if prompt != "y":
             finished = True
-
-

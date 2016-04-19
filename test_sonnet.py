@@ -5,8 +5,8 @@ from nose.tools import *
 import sonnet as snt
 import random
 
-listmaker = snt.CommonWordListMaker()
-templates = snt.TemplateReader("line_templates.csv", listmaker).read()
+vocab = snt.Vocab()
+templates = snt.TemplateReader("line_templates.csv").read()
 
 class TestWord(object):
     def test_look_up(self):
@@ -145,18 +145,21 @@ class TestLine(object):
 
 class TestTemplate(object):
     def test_list_maker(self):
-        nouns = listmaker.common_words("NN")
-        eq_(len(nouns), 398)
+        nouns = vocab.common_words("NN")
+        eq_(len(nouns), 997)
         ok_("time" in nouns)
         
     def test_blank_fill(self):
         random.seed(1)
-        a = snt.Blank("VB", listmaker)
-        eq_(a.fill(), "continue")
+        a = snt.Blank("VB")
+        a.make_pools(vocab)
+        eq_(a.fill(), "chill")
 
     def test_template_populate(self):
         tags = ["VB", "VB", "NN", "VB"]
-        blanks = [snt.Blank(tag, listmaker) for tag in tags]
+        blanks = [snt.Blank(tag) for tag in tags]
+        for blank in blanks:
+            blank.make_pools(vocab)
         a = snt.Template("Let's {} and {} some {} we can't {}.", blanks)
         ok_(isinstance(a.populate(), snt.Line))
 
@@ -165,13 +168,16 @@ class TestTemplate(object):
         ok_(isinstance(t, list))
         ok_(isinstance(t[0], snt.Template))
         ok_(not t[0].intro_required)
-        ok_(not t[0].intro)
         eq_(t[10].intro_required, "NP")
         eq_(t[10].intro, "VP")
 
+    def test_flex(self):
+        ok_(templates[0].is_flexible())
+        ok_(not templates[23].is_flexible())
+
 class TestSonnetWriter(object):
     def test_match_transitions(self):
-        sw = snt.SonnetWriter()
+        sw = snt.SonnetWriter(vocab = vocab)
         t1 = templates[0]
         #No transitions, should not be extended
         matched_t1 = sw.match_transitions(t1, templates)
@@ -185,7 +191,7 @@ class TestSonnetWriter(object):
         #Should be last in the list since no outro will be added
 
     def test_pick_lines(self):
-        sw = snt.SonnetWriter()
+        sw = snt.SonnetWriter(vocab = vocab)
         sw.pick_lines(templates)
         #Should return a list of lists of templates, with 14 total templates
         ok_(isinstance(sw.lines, list))
@@ -194,7 +200,7 @@ class TestSonnetWriter(object):
         eq_(sum([len(line_list) for line_list in sw.lines]), 14)
 
     def test_arrange_lines(self):
-        sw = snt.SonnetWriter()
+        sw = snt.SonnetWriter(vocab = vocab)
         sw.pick_lines(templates)
         sw.arrange_lines()
         eq_(len(sw.couplet), 2)
@@ -205,9 +211,47 @@ class TestSonnetWriter(object):
             ok_(not quatrain[-1].outro_required)
 
     def test_populate(self):
-        sw = snt.SonnetWriter()
+        random.seed(1)
+        sw = snt.SonnetWriter(vocab = vocab)
         sw.pick_lines(templates)
         sw.arrange_lines()
         sw.populate()
         eq_(len(sw.filled_sonnet), 14)
 
+    def test_pick_hold_line(self):
+        sw = snt.SonnetWriter(vocab = vocab)
+        nonflex_t = templates[23]
+        flex_t = templates[0]
+        eq_(nonflex_t, sw.pick_hold_template([flex_t, nonflex_t]))
+        eq_(nonflex_t, sw.pick_hold_template([nonflex_t, flex_t]))
+        ok_(isinstance(sw.pick_hold_template([flex_t, templates[1]]), snt.Template))
+
+
+class TestCollectionReader(object):
+    def __init__(self):
+        self.filename = "autumn_collection.csv"
+
+    def test_read(self):
+        cr = snt.CollectionReader(self.filename)
+        collection = cr.read()
+        ok_(isinstance(collection, list))
+        ok_(isinstance(collection[0], tuple))
+        eq_(("November", "NN"), collection[0])
+
+
+class TestCollections(object):
+    def __init__(self):
+        self.filename = "autumn_collection.csv"
+        cr = snt.CollectionReader(self.filename)
+        self.collection = cr.read()
+
+    def test_add_collection(self):
+        vocab.add_collection(self.collection)
+        ok_("November" in vocab.collection_words["NN"])
+
+
+class TestVocab(object):
+    def test_rhyming_words(self):
+        rhymes = vocab.rhyming_words(snt.Word("mass"), "NN")
+        ok_("class" in rhymes)
+        ok_("glass" in rhymes)
