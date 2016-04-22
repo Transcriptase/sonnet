@@ -259,7 +259,8 @@ class Template(object):
                 fail_count += 1
             if fail_count >= attempts:
                 give_up = True
-                logging.warning("No scanning completions found for template: {}".format(self.raw_text))
+                msg = "No scanning completions found for template: {}".format(self.raw_text)
+                raise ScanFailure(self, msg)
 
     def make_candidates(self, depth = 20):
         self.candidates = [self.make_scanning_line() for ii in xrange(depth)]
@@ -287,8 +288,6 @@ class Template(object):
     def polish(self):
         if self.sentence_start:
             self.filled_line.capitalize_first_word()
-        else:
-            self.filled_line.lowercase_first_word()
         sentence_ending_punc = [".", "?", "!"]
         last_char = self.filled_line.text[-1]
         if self.sentence_end and last_char not in sentence_ending_punc:
@@ -330,15 +329,16 @@ class TemplateReader(object):
 
 class Blank(object):
     """docstring for Blank"""
-    def __init__(self, pos_tag, optional = False):
+    def __init__(self, pos_tag, optional = False, collection_prob = 0.4):
         self.pos_tag = pos_tag
         self.optional = optional
         self.collection_pool = []
+        self.collection_prob = 0.4
 
-    def fill(self, collection_prob = 0.4):
+    def fill(self):
         if self.collection_pool:
             use_collection = random.random()
-            if use_collection < collection_prob:
+            if use_collection < self.collection_prob:
                 return random.choice(self.collection_pool)
         return random.choice(self.common_pool)
 
@@ -434,7 +434,7 @@ class Vocab(object):
         self.collection_pool = {}
         self.uncommon_tag_words = {}
         self.used =[]
-        self.blacklist = ["TV", "Q", "C", "UN", "n", "queers", "faggot", "faggots", "nigger", "niggers"]
+        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "queers", "faggot", "faggots", "nigger", "niggers"]
         #Words in the dictionary that I don't want to use,
         #Unnatural sounding or... well.
 
@@ -462,11 +462,15 @@ class Vocab(object):
             self.collection_pool[tag] = []
         return self.collection_pool[tag]
 
-    def add_collection(self, collection):
-        for word, pos_tag in collection.tagged_words:
-            if pos_tag not in self.collection_pool:
-                self.collection_pool[pos_tag] = []
-            self.collection_pool[pos_tag].append(word)
+    def add_collection(self, collection_id):
+        if not collection_id in self.collections:
+            logging.warning("Collection not found: {}".format(collection_id))
+        else:
+            collection = self.collections[collection_id]
+            for word, pos_tag in collection.tagged_words:
+                if pos_tag not in self.collection_pool:
+                    self.collection_pool[pos_tag] = []
+                self.collection_pool[pos_tag].append(word)
 
     def clear_collections(self):
         self.collection_pool = {}
@@ -504,7 +508,7 @@ class Vocab(object):
 
 class SonnetWriter(object):
     """docstring for SonnetWriter"""
-    def __init__(self, vocab = Vocab()):
+    def __init__(self, vocab):
         self.vocab = vocab
 
     def load_templates(self, filename):
@@ -522,8 +526,6 @@ class SonnetWriter(object):
                     self.line_groups.append(new_lines)
                     new_lines[0].sentence_start = True
                     new_lines[-1].sentence_end = True
-
-
 
     def match_transitions(self, start_template):
         complete_sentence = [start_template]
@@ -635,6 +637,11 @@ class SonnetWriter(object):
         finally:
             reach_line.restore_from_rhyme()
 
+    def set_coll_prob(self, coll_prob):
+        for template in self.template_pool:
+            for blank in template.blanks:
+                blank.collection_prob = coll_prob
+
     def populate(self):
         unfilled_sections = [section for section in self.sections if not section.filled]
         while unfilled_sections:
@@ -643,12 +650,6 @@ class SonnetWriter(object):
                 self.pick_rhymes(template_pair)
             next_section.filled = True
             unfilled_sections = [section for section in self.sections if not section.filled]
-
-    def display(self):
-        for section in self.sections:
-            for template in section.template_list:
-                template.polish()
-                print template.filled_line.text
 
     def reset(self):
         logging.info("Resetting...")
@@ -666,10 +667,10 @@ class SonnetWriter(object):
                 self.arrange_lines()
                 self.populate()
                 successful = True
-            except (ConstructionFailure, PairFailure) as e:
+            except (ConstructionFailure, PairFailure, ScanFailure) as e:
                 logging.warning(e.msg)
-        self.display()
-
+        logging.info("Sonnet creation successful.")
+        return Sonnet(self.sections)
 
 class Section(object):
     def __init__(self, template_list):
@@ -679,6 +680,27 @@ class Section(object):
             self.template_pairs = [[self.template_list[0], self.template_list[2]], [self.template_list[1], self.template_list[3]]]
         if len(self.template_list) == 2:
             self.template_pairs = [self.template_list]
+
+class Sonnet(object):
+    def __init__(self, sections):
+        self.sections = sections
+        self.ordered_templates = []
+        for section in self.sections:
+            self.ordered_templates.extend(section.template_list)
+        self.polish()
+        self.make_text()
+
+    def __str__(self):
+        return self.text
+
+    def polish(self):
+        for template in self.ordered_templates:
+            template.polish()
+
+    def make_text(self):
+        self.text = "".join(["{}\n".format(template.filled_line.text) for template in self.ordered_templates])
+            
+
 
 
 class SonnetFailure(Exception):
@@ -707,12 +729,18 @@ class PairFailure(SonnetFailure):
         self.template_pair = template_pair
         self.msg = msg
 
+class ScanFailure(SonnetFailure):
+    def __init__(self, template, msg):
+        self.template = template
+        self.msg = msg
+
+
 
 if __name__ == '__main__':
     vocab = Vocab()
     reader = TemplateReader("line_templates.csv")
     templates = reader.read()
-    sw = SonnetWriter()
+    sw = SonnetWriter(vocab)
     finished = False
     while not finished:
         sw.pick_lines(templates)

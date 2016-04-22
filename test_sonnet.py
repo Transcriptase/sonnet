@@ -173,7 +173,7 @@ class TestLine(object):
 class TestTemplate(object):
     def test_list_maker(self):
         nouns = vocab.common_words("NN")
-        eq_(len(nouns), 994)
+        eq_(len(nouns), 993)
         ok_("time" in nouns)
         
     def test_blank_fill(self):
@@ -250,6 +250,7 @@ class TestSonnetWriter(object):
         eq_(sum([len(line_list) for line_list in self.sw.line_groups]), 14)
 
     def test_arrange_lines(self):
+        random.seed(1)
         self.sw.pick_lines()
 
         self.sw.arrange_lines()
@@ -258,28 +259,6 @@ class TestSonnetWriter(object):
         for section in self.sw.sections[:2]:
             eq_(len(section.template_list), 4)
         eq_(len(self.sw.sections[-1].template_list), 2)
-
-    def test_populate(self):
-        self.sw.pick_lines()
-
-
-        fail_count = 0
-        give_up = False
-        while not give_up: 
-            try:
-                self.sw.arrange_lines()
-                self.sw.populate()
-                break
-            except (ConstructionFailure, PairFailure, RhymeFailure) as e:
-                fail_count += 1
-                logging.warning(e.msg)
-                if fail_count > 5:
-                    give_up = True
-
-        for section in self.sw.sections:
-            ok_(section.filled)
-            for template in section.template_list:
-                ok_(template.filled_line)
 
     def test_pick_hold_line(self):
         nonflex_t = templates[23]
@@ -299,7 +278,12 @@ class TestSonnetWriter(object):
             ok_(isinstance(template.blanks[-1], snt.Blank))
             ok_(not isinstance(template.blanks[-1], snt.RhymeBlank))
 
+    def test_set_coll_prob(self):
+        self.sw.set_coll_prob(.6)
 
+        for template in self.sw.template_pool:
+            for blank in template.blanks:
+                eq_(blank.collection_prob, 0.6)
 
 class TestCollectionReader(object):
     def __init__(self):
@@ -312,12 +296,10 @@ class TestCollectionReader(object):
         ok_(isinstance(collection[0], tuple))
         eq_(("November", "NN"), collection[0])
 
-
 class TestCollections(object):
     def test_add_collection(self):
-        vocab.add_collection(vocab.collections["autumn"])
+        vocab.add_collection("autumn")
         ok_("November" in vocab.collection_pool["NN"])
-
 
 class TestCollectionManager(object):
     def setup(self):
@@ -335,3 +317,16 @@ class TestVocab(object):
         rhymes = vocab.rhyming_words(snt.Word("mass"), "NN")
         ok_("class" in rhymes)
         ok_("glass" in rhymes)
+
+    def test_not_used(self):
+        vocab.add_collection("autumn")
+
+        pool = vocab.make_collection_pool("JJ")
+
+        ok_("amber" in pool)
+
+        vocab.used.append("amber")
+        pool = vocab.make_collection_pool("JJ")
+
+        ok_("amber" not in pool)
+        ok_("hungry" in pool)
