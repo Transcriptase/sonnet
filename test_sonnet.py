@@ -143,24 +143,55 @@ class TestLine(object):
         f = snt.Line("that alters when it bananas finds")
         ok_(not f.scans())
 
+    def test_cap(self):
+        a = snt.Line("test test test.")
+
+        a.capitalize_first_word()
+
+        eq_(a.text, "Test test test.")
+
+    def test_lower_first_word(self):
+        a = snt.Line("Test test Test.")
+        b = snt.Line("I should stay capped.")
+
+        a.lowercase_first_word()
+        b.lowercase_first_word()
+
+        eq_(a.text, "test test Test.")
+        eq_(b.text, "I should stay capped.")
+
+    def end_with_period(self):
+        a = snt.Line("This one is easy")
+        b = snt.Line("This needs to have the comma stripped,")
+
+        a.end_with_period()
+        b.end_with_period()
+
+        eq_(a.text, "This one is easy.")
+        eq_(b.text, "This needs to have the coomma stripped.")
+
 class TestTemplate(object):
     def test_list_maker(self):
         nouns = vocab.common_words("NN")
-        eq_(len(nouns), 997)
+        eq_(len(nouns), 994)
         ok_("time" in nouns)
         
     def test_blank_fill(self):
-        random.seed(1)
         a = snt.Blank("VB")
-        a.make_pools(vocab)
-        eq_(a.fill(), "chill")
+        a.common_pool = vocab.make_common_pool(a.pos_tag)
+
+        w = a.fill()
+
+        ok_(isinstance(w, unicode))
+        ok_(w in snt.dictionary)
+        ok_(w in vocab.common_tag_words["VB"])
 
     def test_template_populate(self):
         tags = ["VB", "VB", "NN", "VB"]
         blanks = [snt.Blank(tag) for tag in tags]
-        for blank in blanks:
-            blank.make_pools(vocab)
         a = snt.Template("Let's {} and {} some {} we can't {}.", blanks)
+        a.make_pools(vocab)
+
         ok_(isinstance(a.populate(), snt.Line))
 
     def test_template_reader(self):
@@ -175,56 +206,99 @@ class TestTemplate(object):
         ok_(templates[0].is_flexible())
         ok_(not templates[23].is_flexible())
 
+    def test_polish(self):
+        t = templates[0]
+        t.filled_line = snt.Line("this should be capitalized and end in a period")
+        t.sentence_start = True
+        t.sentence_end = True
+
+        t.polish()
+
+        eq_(t.filled_line.text, "This should be capitalized and end in a period.")
+
 class TestSonnetWriter(object):
+    def setup(self):
+        self.sw = snt.SonnetWriter(vocab = vocab)
+        self.sw.template_pool = templates
+
+    def teardown(self):
+        self.sw.reset()
+
     def test_match_transitions(self):
-        sw = snt.SonnetWriter(vocab = vocab)
+        self.sw.lines = templates[:13]
+
         t1 = templates[0]
         #No transitions, should not be extended
-        matched_t1 = sw.match_transitions(t1, templates)
+        matched_t1 = self.sw.match_transitions(t1)
         eq_(len(matched_t1), 1)
 
         t2 = templates[10]
         #Needs intro, no outro
-        matched_t2 = sw.match_transitions(t2, templates)
-        eq_(len(matched_t2), 2)
+        matched_t2 = self.sw.match_transitions(t2)
+        ok_(len(matched_t2) >= 2)
         eq_(matched_t2[-1], t2)
         #Should be last in the list since no outro will be added
 
     def test_pick_lines(self):
-        sw = snt.SonnetWriter(vocab = vocab)
-        sw.pick_lines(templates)
-        #Should return a list of lists of templates, with 14 total templates
-        ok_(isinstance(sw.lines, list))
-        ok_(isinstance(sw.lines[0], list))
-        ok_(isinstance(sw.lines[0][0], snt.Template))
-        eq_(sum([len(line_list) for line_list in sw.lines]), 14)
+        self.sw.pick_lines()
+
+        ok_(isinstance(self.sw.lines, list))
+        ok_(isinstance(self.sw.lines[0], snt.Template))
+        ok_(len(self.sw.lines), 14)
+        ok_(isinstance(self.sw.line_groups, list))
+        ok_(isinstance(self.sw.line_groups[0][0], snt.Template))
+        eq_(sum([len(line_list) for line_list in self.sw.line_groups]), 14)
 
     def test_arrange_lines(self):
-        sw = snt.SonnetWriter(vocab = vocab)
-        sw.pick_lines(templates)
-        sw.arrange_lines()
-        eq_(len(sw.couplet), 2)
-        eq_(len(sw.quatrains), 3)
-        for quatrain in sw.quatrains:
-            eq_(len(quatrain), 4)
-            ok_(not quatrain[0].intro_required)
-            ok_(not quatrain[-1].outro_required)
+        self.sw.pick_lines()
+
+        self.sw.arrange_lines()
+
+        eq_(len(self.sw.sections), 4)
+        for section in self.sw.sections[:2]:
+            eq_(len(section.template_list), 4)
+        eq_(len(self.sw.sections[-1].template_list), 2)
 
     def test_populate(self):
-        random.seed(1)
-        sw = snt.SonnetWriter(vocab = vocab)
-        sw.pick_lines(templates)
-        sw.arrange_lines()
-        sw.populate()
-        eq_(len(sw.filled_sonnet), 14)
+        self.sw.pick_lines()
+
+
+        fail_count = 0
+        give_up = False
+        while not give_up: 
+            try:
+                self.sw.arrange_lines()
+                self.sw.populate()
+                break
+            except (ConstructionFailure, PairFailure, RhymeFailure) as e:
+                fail_count += 1
+                logging.warning(e.msg)
+                if fail_count > 5:
+                    give_up = True
+
+        for section in self.sw.sections:
+            ok_(section.filled)
+            for template in section.template_list:
+                ok_(template.filled_line)
 
     def test_pick_hold_line(self):
-        sw = snt.SonnetWriter(vocab = vocab)
         nonflex_t = templates[23]
         flex_t = templates[0]
-        eq_(nonflex_t, sw.pick_hold_template([flex_t, nonflex_t]))
-        eq_(nonflex_t, sw.pick_hold_template([nonflex_t, flex_t]))
-        ok_(isinstance(sw.pick_hold_template([flex_t, templates[1]]), snt.Template))
+        eq_(nonflex_t, self.sw.pick_hold_template([flex_t, nonflex_t]))
+        eq_(nonflex_t, self.sw.pick_hold_template([nonflex_t, flex_t]))
+        ok_(isinstance(self.sw.pick_hold_template([flex_t, templates[1]]), snt.Template))
+
+    def test_rhyme_blank_switch(self):
+        tp = [templates[0], templates[1]]
+
+        self.sw.force_rhyme_cands(tp)
+
+        #Make sure the last blank is correctly no longer a rhyme blank after
+        #candidates have been generated
+        for template in tp:
+            ok_(isinstance(template.blanks[-1], snt.Blank))
+            ok_(not isinstance(template.blanks[-1], snt.RhymeBlank))
+
 
 
 class TestCollectionReader(object):
@@ -240,15 +314,21 @@ class TestCollectionReader(object):
 
 
 class TestCollections(object):
-    def __init__(self):
-        self.filename = "autumn_collection.csv"
-        cr = snt.CollectionReader(self.filename)
-        self.collection = cr.read()
-
     def test_add_collection(self):
-        vocab.add_collection(self.collection)
-        ok_("November" in vocab.collection_words["NN"])
+        vocab.add_collection(vocab.collections["autumn"])
+        ok_("November" in vocab.collection_pool["NN"])
 
+
+class TestCollectionManager(object):
+    def setup(self):
+        self.cm = snt.CollectionManager()
+
+    def test_cm(self):
+        self.cm.read_all()
+
+        ok_("autumn" in self.cm.collections)
+        ok_(isinstance(self.cm.collections["autumn"], snt.Collection))
+        ok_(self.cm.collections["autumn"].id, "autumn")
 
 class TestVocab(object):
     def test_rhyming_words(self):

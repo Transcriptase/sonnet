@@ -1,28 +1,42 @@
 raw_text,pos_tags,optional,intro_required,outro_required,intro,outro
-Let's go and {} some {} we can't {}.,VB NN VB,F F F F,F,F,IC,F
-Your {} is as {} as the {} you {}.,NN JJ NN VB,F F F F,F,F,IC,F
+Let's go and {} some {} we can't {},VB NN VB,F F F F,F,F,F,F
+Your {} is as {} as the {} you {},NN JJ NN VB,F F F F,F,F,IC,F
 "Another {}{}, another {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 You {} your {} just to watch them {},VB NNS VB,F F F F,F,F,IC,F
-Your {} is a {} {}.,NN JJ NN,F F F,F,F,IC,F
-A {} is a {} that never {}.,NN NN VBD,F F F,F,F,F,F
-The {} {} and the {} {}.,NN VBD NN VBD,F F F F,F,F,IC,F
-"Be {}: {}, {}, {}.",JJ VB VB VB,F F F F,F,F,IC,F
+Your {} is a {} {},NN JJ NN,F F F,F,F,IC,F
+A {} is a {} that never {},NN NN VBD,F F F,F,F,F,F
+The {} {} and the {} {},NN VBD NN VBD,F F F F,F,F,IC,F
+"Be {}: {}, {}, {}",JJ VB VB VB,F F F F,F,F,IC,F
 The {} {} couldn't {},JJT NN VB,F F F,F,F,IC,VP
 "Each {}{}, each {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
-is just a {}{} in a {}.,JJ NN NN,T F F,NP,F,VP,F
-{} like {}{}: {} and {}.,VBD JJ NNS JJ JJ,F T F F F,NP,F,VP,F
+is just a {}{} in a {},JJ NN NN,T F F,NP,F,VP,F
+{} like {}{}: {} and {},VBD JJ NNS JJ JJ,F T F F F,NP,F,VP,F
 "Your {} was the {}{},",NN JJ NN,F T F,F,S1,IC,S1
-and my {} was this {}{}.,NN JJ NN,F T F,S1,F,S1,F
+and my {} was this {}{},NN JJ NN,F T F,S1,F,S1,F
 Remember {}: {} and {},NN NN NN,F F F,F,F,F,NP
 Is this {} what it takes to {}?,NN VB,F F,F,F,F,F
 "One more {}{}, one more {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 "{}{} make {}{} out of {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,S2,IC,S2
-And {} makes the {} all seem {}.,NN NNS JJ,FF FF FF,S2,F,S2,F
+And {} makes all the {} seem {}.,NN NNS JJ,FF FF FF,S2,F,S2,F
 This {} is a {}: {} and {}.,NN NN JJ JJ,F F F F,F,F,IC,F
 Your {} is a {}{}: {},NN JJ NN JJ JJ,F T F F,F,S3,IC,S3
 and {} with {}{}.,VBG JJ NN,F T F,S3,F,S3,F
-were {} the {}{}.,VBG JJT NN,F T F,NP,F,VP,F
-"so {}, so {}, but then",JJ JJ,F F,F,IC,IC,IC
+were {} with the {}{}.,VBG JJT NN,F T F,NP,F,VP,F
+"so {}, so {}, but then",JJ JJ,F F,F,IC,F,DC
 I can't believe it doesn't {} the {},VB NN,F F,F,F,IC,F
-"then {}{}, then {}{}, until",JJ NN JJ NN,T F T F,F,IC,S4,IC
-"First was {}{}, {} and {}",JJ NN JJ JJ,T F F F,F,F,F,S4
+"then {}{}, then {}{}, until",JJ NN JJ NN,T F T F,S4,IC,S4,DC
+"First was {}{}, {} and {},",JJ NN JJ JJ,T F F F,F,F,F,S4
+The {}{} will be {} than {},JJ NNS JJR NNS,T F F F,F,F,IC,S5
+and the {}{} will be our {}.,JJ NNS NNS,T F F,S5,F,S5,F
+"{} something every day. A {}{},",VB JJ NN,F T F,F,NP,F,S6
+"two {}{}, some {}{}, your {}{}",JJ NNS JJ NNS JJ NNS,T F T F T F,S6,F,S6,NP
+A {}{} is not enough. I need,JJ NN,T F,F,S6,IC,S6
+"I know you're {}{}, but I hope",RB JJ,T F,F,IC,F,DC
+"and nothing {}, not {}, not {},",VBZ NNS NNS,F F F,IC,F,DC,S7
+not {}{} or even {}{} ,JJ NNS JJ NN,T F T F,S7,F,F,NP
+could {} the way the {}{} {},VB JJ NN VBD,F T F F,NP,F,VP,F
+and all we have to {} is {}{},VB JJ NN,F T F,IC,F,DC,IC
+"When all the {} are {} and {},",NNS JJ JJ,F F F,F,IC,DC,DC
+"in the {}{}, the {}{}, the {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,IC,DC,DC
+"or waste a second {} for a {},",VBG NN,F F,IC,F,DC,DC
+the {} {}. New {} will {},NN VBZ NNS VB,F F F F,F,F,IC,IC

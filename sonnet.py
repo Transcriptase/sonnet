@@ -8,13 +8,16 @@ import logging
 import re
 import random
 import csv
+import glob
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-dictionary = nltk.corpus.cmudict.dict()
 #Import the CMU Pronouncing Dictionary as a dictionary
+logging.info("Loading dictionary...")
+dictionary = nltk.corpus.cmudict.dict()
+logging.info("Done.")
 
 syllable_marks = re.compile("0|1|2")
 stressed_syllable_marks = re.compile("1|2")
@@ -34,7 +37,7 @@ class Word(object):
             pronunciations = dictionary[self.text]
         except KeyError:
             self.not_in_dict = True
-            logging.debug("Word \'{}\' not found in CMU dictionary.".format(self.text))
+            logging.warning("Word \'{}\' not found in CMU dictionary.".format(self.text))
             return
         self.not_in_dict = False
         if len(pronunciations) > 1:
@@ -115,11 +118,12 @@ class Line(object):
         self.text = text
         self.make_word_list()
         self.make_syl_strings()
+        self.choices = []
 
     def make_word_list(self):
         word_list = nltk.word_tokenize(self.text)
         #Combine contractions
-        contractions = ["n't", "'s", "'m", "'re"]
+        contractions = ["n't", "'s", "'m", "'re", "'ll"]
         for contraction in contractions:
             while contraction in word_list:
                 cont_index = word_list.index(contraction)
@@ -178,6 +182,35 @@ class Line(object):
         else:
             return False
 
+    def same_choices(self, other_line):
+        for choice in self.choices:
+            if choice in other_line.choices:
+                return True
+        return False
+
+    def capitalize_first_word(self):
+        words = self.text.split()
+        words[0] = words[0].capitalize()
+        self.text = " ".join(words)
+
+    def lowercase_first_word(self):
+        words = self.text.split()
+        if words[0] != "I":
+            words[0] = words[0].lower()
+        self.text = " ".join(words)
+
+    def end_with_period(self):
+        self.text = self.text.rstrip(",")
+        self.text = "".join([self.text, "."])
+
+    def no_repeated_choices(self):
+        seen = set()
+        for choice in self.choices:
+            if choice != "" and choice in seen:
+                return False
+            seen.add(choice)
+        return True
+
 
 class Template(object):
     """A Template for a Line we hope to fill
@@ -189,6 +222,9 @@ class Template(object):
         self.outro = outro
         self.intro_required = intro_required
         self.outro_required = outro_required
+        self.filled_line = None
+        self.sentence_start = False
+        self.sentence_end = False
 
     def populate(self):
         choices = ["" for blank in self.blanks]
@@ -196,15 +232,20 @@ class Template(object):
         for index, blank in enumerate(self.blanks):
             if not blank.optional:
                 choices[index] = blank.fill()
-        candidate = Line(self.raw_text.format(*choices))
+        candidate = self.make_line(choices)
         while candidate.too_short() and unfilled_optionals:
             next_optional_blank = random.choice(unfilled_optionals)
             unfilled_optionals.remove(next_optional_blank)
             optional_word = "{} ".format(next_optional_blank.fill())
             #Needed to insert space between optional word and next word.
             choices[self.blanks.index(next_optional_blank)] = optional_word
-            candidate = Line(self.raw_text.format(*choices))
+            candidate = self.make_line(choices)
         return candidate
+
+    def make_line(self, choices):
+        line = Line(self.raw_text.format(*choices))
+        line.choices = choices
+        return line
 
     def make_scanning_line(self, attempts = 10000):
         finished = False
@@ -212,7 +253,7 @@ class Template(object):
         fail_count = 0
         while not finished and not give_up:
             candidate = self.populate()
-            if candidate.scans():
+            if candidate.scans() and candidate.no_repeated_choices():
                 return candidate
             else:
                 fail_count += 1
@@ -223,13 +264,42 @@ class Template(object):
     def make_candidates(self, depth = 20):
         self.candidates = [self.make_scanning_line() for ii in xrange(depth)]
 
-    def more_candidates(self, depth = 10):
-        self.candidates.extend([self.make_scanning_line() for ii in xrange(depth)])
+    def convert_to_rhyme(self, words):
+        self.blanks[-1] = RhymeBlank(self.blanks[-1].pos_tag, words, self.blanks[-1].optional)
+
+    def restore_from_rhyme(self):
+        self.blanks[-1] = Blank(self.blanks[-1].pos_tag, self.blanks[-1].optional)
 
     def is_flexible(self):
         return not any(c.isalpha() for c in self.raw_text.split("{}")[-1])
         #Convoluted, but checks to see if there is a word after the last blank
         #(Split on the blanks, grab the last section, see if there are any letters in it)
+
+    def last_words(self):
+        last_words = set([cand.word_list[-1].text for cand in self.candidates])
+        last_words =[Word(text) for text in last_words]
+        return last_words
+
+    def make_pools(self, vocab):
+        for blank in self.blanks:
+            blank.make_pools(vocab)
+
+    def polish(self):
+        if self.sentence_start:
+            self.filled_line.capitalize_first_word()
+        else:
+            self.filled_line.lowercase_first_word()
+        sentence_ending_punc = [".", "?", "!"]
+        last_char = self.filled_line.text[-1]
+        if self.sentence_end and last_char not in sentence_ending_punc:
+            self.filled_line.end_with_period()
+
+    def cleanup(self):
+        self.candidates = []
+        self.filled_line = None
+        self.sentence_start = False
+        self.sentence_end = False
+
 
 class TemplateReader(object):
     """Pulls Templates from a file"""
@@ -263,18 +333,7 @@ class Blank(object):
     def __init__(self, pos_tag, optional = False):
         self.pos_tag = pos_tag
         self.optional = optional
-        self.rhyme_pool = []
         self.collection_pool = []
-
-    def make_common_pool(self, vocab):
-        self.common_pool = vocab.common_words(self.pos_tag)
-
-    def make_collection_pool(self, vocab):
-        self.collection_pool = vocab.make_collection_pool(self.pos_tag)
-
-    def make_pools(self, vocab):
-        self.make_common_pool(vocab)
-        self.make_collection_pool(vocab)
 
     def fill(self, collection_prob = 0.4):
         if self.collection_pool:
@@ -283,29 +342,114 @@ class Blank(object):
                 return random.choice(self.collection_pool)
         return random.choice(self.common_pool)
 
-    def make_rhyme_pool(self, source_word, vocab):
-        self.rhyme_pool.extend(vocab.rhyming_words(source_word, self.pos_tag))
+    def make_pools(self, vocab):
+        self.common_pool = vocab.make_common_pool(self.pos_tag)
+        self.collection_pool = vocab.make_collection_pool(self.pos_tag)
 
-    def rhyme_fill(self):
+
+class RhymeBlank(Blank):
+    def __init__(self, pos_tag, words, optional = False, ):
+        self.pos_tag = pos_tag
+        self.optional = optional
+        self.words = words
+        self.rhyme_pool = []
+
+    def fill(self):
         return random.choice(self.rhyme_pool)
+
+    def make_pools(self, vocab):
+        self.rhyme_pool = vocab.make_rhyme_pool(self.words, self.pos_tag)
+        if not self.rhyme_pool:
+            msg = "Unable to find rhymes in {} for {}".format(self.pos_tag, [word.text for word in self.words])
+            raise RhymeFailure(self, msg)
+
+
+class CollectionReader(object):
+    def __init__(self, coll_file):
+        self.coll_file = coll_file
+
+    def read(self):
+        tagged_words = []
+        with open(self.coll_file, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                word = row["word"]
+                pos_tag = row["pos_tag"]
+                pron = row["pron"]
+                tagged_words.append((word, pos_tag))
+                if pron:
+                    dictionary[word.lower()] = [pron]
+        return tagged_words
+
+
+class Collection(object):
+    def __init__(self, tagged_words):
+        self.tagged_words = tagged_words
+        self.id = None
+
+    def check(self):
+        for word, pos_tag in self.tagged_words:
+            if word.lower() not in dictionary:
+                print ("{} not found in CMU dict. Enter custom pronounciation in file.".format(word))
+
+
+class CollectionManager(object):
+    def __init__(self):
+        self.collections = {}
+        self.coll_pattern = "_collection.csv"
+
+    def coll_file_list(self):
+        return glob.glob("".join(["*", self.coll_pattern]))
+
+    def read_all(self):
+        for filename in self.coll_file_list():
+            reader = CollectionReader(filename)
+            collection = Collection(reader.read())
+            collection.id = filename.split(self.coll_pattern)[0]
+            collection.check()
+            self.collections[collection.id] = (collection)
 
 
 class Vocab(object):
     '''Processes the Brown corpus to find the most common
     words for each part of speech, and stores the results so
     the slow lookup only happens once.'''
-    def __init__(self, common_depth = 1000, uncommon_depth = 5000):
+    def __init__(self, common_depth = 1000, uncommon_depth = 20000):
+        logging.info("Initializing vocabulary...")
+        logging.info("Loading Brown corpus...")
         self.corpus = nltk.corpus.brown.tagged_words()
+        logging.info("Done.")
+        logging.info("Making frequency distribution...")
         self.cfd = nltk.ConditionalFreqDist((tag, word) for word, tag in self.corpus)
+        logging.info("Done.")
+        logging.info("Loading collections...")
+        cm = CollectionManager()
+        cm.read_all()
+        self.collections = cm.collections
+        logging.info("Done")
+
         self.common_depth = common_depth
         self.uncommon_depth = uncommon_depth
         self.common_tag_words = {}
-        self.collection_words = {}
+        self.collection_pool = {}
         self.uncommon_tag_words = {}
+        self.used =[]
+        self.blacklist = ["TV", "Q", "C", "UN", "n", "queers", "faggot", "faggots", "nigger", "niggers"]
+        #Words in the dictionary that I don't want to use,
+        #Unnatural sounding or... well.
 
     def find_common_words(self, tag, depth):
         logging.debug("Inititalizing {} to depth {}...".format(tag, depth))
-        return [word for word, count in self.cfd[tag].most_common(depth) if word.lower() in dictionary and word.isalpha()]
+        word_list = [word for word, count in self.cfd[tag].most_common(depth)]
+        return self.wordlist_filter(word_list)
+
+    def wordlist_filter(self, word_list):
+        def word_filter(word):
+            in_dict = word.lower() in dictionary
+            unneeded_cap = word[0].isupper() and word.lower() in word_list
+            on_blacklist = word in self.blacklist
+            return in_dict  and word.isalpha() and not unneeded_cap and not on_blacklist
+        return [word for word in word_list if word_filter(word)]
 
     def common_words(self, tag):
         if tag not in self.common_tag_words.keys():
@@ -313,24 +457,27 @@ class Vocab(object):
             logging.debug("{} initialized.".format(tag))
         return self.common_tag_words[tag]
 
-    def make_collection_pool(self, tag):
-        if tag not in self.collection_words.keys():
-            self.collection_words[tag] = []
-        return self.collection_words[tag]
+    def collection_words(self, tag):
+        if tag not in self.collection_pool:
+            self.collection_pool[tag] = []
+        return self.collection_pool[tag]
 
     def add_collection(self, collection):
-        for word, pos_tag in collection:
-            if pos_tag not in self.collection_words.keys():
-                self.collection_words[pos_tag] = []
-            self.collection_words[pos_tag].append(word)
+        for word, pos_tag in collection.tagged_words:
+            if pos_tag not in self.collection_pool:
+                self.collection_pool[pos_tag] = []
+            self.collection_pool[pos_tag].append(word)
+
+    def clear_collections(self):
+        self.collection_pool = {}
 
     def rhyming_words(self, source_word, pos_tag):
         rhymes = [word for word in self.common_words(pos_tag) if source_word.rhymes_with(Word(word))]
         if not rhymes:
-            logging.warning("No common rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
+            logging.debug("No common rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
             rhymes = [word for word in self.uncommon_words(pos_tag) if source_word.rhymes_with(Word(word))]
             if not rhymes:
-                logging.warning("No uncommon rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
+                logging.debug("No uncommon rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
         return rhymes
 
     def uncommon_words(self, tag):
@@ -339,33 +486,49 @@ class Vocab(object):
             logging.debug("{} initialized.".format(tag))
         return self.uncommon_tag_words[tag]
 
+    def make_common_pool(self, tag):
+        return self.not_used(self.common_words(tag))
+
+    def make_collection_pool(self, tag):
+        return self.not_used(self.collection_words(tag))
+
+    def make_rhyme_pool(self, source_words, tag):
+        rhyme_pool = []
+        for source_word in source_words:
+            rhyme_pool.extend(self.not_used(self.rhyming_words(source_word, tag)))
+        return rhyme_pool
+
+    def not_used(self, word_list):
+        return [word for word in word_list if word not in self.used]
+
 
 class SonnetWriter(object):
     """docstring for SonnetWriter"""
     def __init__(self, vocab = Vocab()):
         self.vocab = vocab
-        self.lines = []
-        self.quatrains = []
-        self.couplet = []
-        self.fail_count = 0
 
-    def pick_lines(self, templates):
-        self.lines = []
-        lines_added = 0
-        while lines_added < 14:
-            new_template = random.choice(templates)
-            new_lines = self.match_transitions(new_template, templates)
+    def load_templates(self, filename):
+        self.template_pool = TemplateReader(filename).read()
+
+    def pick_lines(self):
+        self.lines, self.line_groups = [], []
+        while len(self.lines) < 14:
+            available_templates = [template for template in self.template_pool if template not in self.lines]
+            new_template = random.choice(available_templates)
+            new_lines = self.match_transitions(new_template)
             if new_lines:
-                if lines_added + len(new_lines) <= 14:
-                    self.lines.append(new_lines)
-                    lines_added += len(new_lines)
-                    templates = [template for template in templates if template not in new_lines]
-                    #remove used templates from pool
+                if len(self.lines) + len(new_lines) <= 14:
+                    self.lines.extend(new_lines)
+                    self.line_groups.append(new_lines)
+                    new_lines[0].sentence_start = True
+                    new_lines[-1].sentence_end = True
 
-    def match_transitions(self, start_template, all_templates):
+
+
+    def match_transitions(self, start_template):
         complete_sentence = [start_template]
         while complete_sentence[0].intro_required:
-            candidates = [template for template in all_templates if template.outro == complete_sentence[0].intro_required]
+            candidates = [template for template in self.template_pool if template.outro == complete_sentence[0].intro_required and template not in self.lines and template not in complete_sentence]
             try:
                 intro = random.choice(candidates)
                 complete_sentence.insert(0, intro)
@@ -373,7 +536,7 @@ class SonnetWriter(object):
                 logging.warning("No {} match found for template: {}".format(start_template.intro_required, start_template.raw_text))
                 return False
         while complete_sentence[-1].outro_required:
-            candidates = [template for template in all_templates if template.intro == complete_sentence[-1].outro_required]
+            candidates = [template for template in self.template_pool if template.intro == complete_sentence[-1].outro_required and template not in self.lines and template not in complete_sentence]
             try:
                 outro = random.choice(candidates)
                 complete_sentence.append(outro)
@@ -383,49 +546,73 @@ class SonnetWriter(object):
         return complete_sentence
 
     def arrange_lines(self):
-        self.quatrains = []
-        self.couplet = []
-        while len(self.couplet) < 2:
-            couplet_candidate = random.choice(self.lines)
-            if len(self.couplet) + len(couplet_candidate) <= 2:
-                self.couplet.extend(couplet_candidate)
-                self.lines.remove(couplet_candidate)
+        self.sections = []
+        quatrains = []
+        couplet = []
+        fail_count = 0
+        give_up = False
+        while len(couplet) < 2 and not give_up:
+            couplet_candidate = random.choice(self.line_groups)
+            if len(couplet) + len(couplet_candidate) <= 2:
+                couplet.extend(couplet_candidate)
+                self.line_groups.remove(couplet_candidate)
+            else:
+                fail_count += 1
+            if fail_count >= 20:
+                give_up = True
+                msg = "Unable to fill couplet from chosen templates."
+                raise ConstructionFailure(self.line_groups, msg)
         for ii in xrange(3):
             new_quatrain = []
-            while len(new_quatrain) < 4:
-                quatrain_candidate = random.choice(self.lines)
+            fail_count = 0
+            give_up = False
+            while len(new_quatrain) < 4 and not give_up:
+                quatrain_candidate = random.choice(self.line_groups)
                 if len(new_quatrain) + len(quatrain_candidate) <= 4:
                     new_quatrain.extend(quatrain_candidate)
-                    self.lines.remove(quatrain_candidate)
-            self.quatrains.append(new_quatrain)
+                    self.line_groups.remove(quatrain_candidate)
+                else:
+                    fail_count += 1
+                if fail_count >= 20:
+                    give_up = True
+                    msg = "Unable to fill quatrain {} from chosen templates.".format(ii + 1)
+                    raise ConstructionFailure(self.line_groups, msg)
+            quatrains.append(new_quatrain)
+        self.sections.extend([Section(quatrain) for quatrain in quatrains])
+        self.sections.append(Section(couplet))
 
     def pick_rhymes(self, template_pair, retries = 5):
         give_up = False
         fail_count = 0
+        logging.debug("Finding rhymes for templates:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text))
         while not give_up:
             self.force_rhyme_cands(template_pair)
             rhymes = self.select_rhyming_candidates(template_pair)
             if rhymes:
-                return random.choice(rhymes)
+                for template, rhyming_line in zip(template_pair, random.choice(rhymes)):
+                    template.filled_line = rhyming_line
+                    self.vocab.used.extend(rhyming_line.choices)
+                return
             else:
                 fail_count += 1
             if fail_count >= retries:
                 give_up = True
-                logging.warning("No rhymes found for lines:\n {}\n {}".format(template_pair[0].raw_text, template_pair[1].raw_text))
+                msg = "No rhymes found for lines:\n {}\n {}".format(template_pair[0].raw_text, template_pair[1].raw_text)
+                raise PairFailure(template_pair, msg)
 
     def select_rhyming_candidates(self, template_pair):
         rhyme_pairs = []
         for candidate1 in template_pair[0].candidates:
             for candidate2 in template_pair[1].candidates:
-                if candidate1.rhymes_with(candidate2):
-                    rhyme_pairs.append((candidate1, candidate2))
+                if candidate1.rhymes_with(candidate2) and not candidate1.same_choices(candidate2):
+                    rhyme_pairs.append([candidate1, candidate2])
         return rhyme_pairs
 
     def pick_hold_template(self, template_pair):
         nonflexible = [template for template in template_pair if not template.is_flexible()]
         if len(nonflexible) > 1:
-            logging.warning("Template pair cannot be matched:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text))
-            return
+            msg = "Template pair cannot be matched:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text)
+            raise PairFailure(template_pair, msg)
         if len(nonflexible) == 1:
             return(nonflexible[0])
         else:
@@ -436,87 +623,90 @@ class SonnetWriter(object):
         reach_line = template_pair[template_pair.index(hold_line) - 1]
         #Slightly magic: if hold_line is [0], then -1 gets you [1]
         #If hold_line is [1], -1 gets you [0]
-        self.make_blank_pools(hold_line)
+        hold_line.make_pools(self.vocab)
         hold_line.make_candidates()
-        last_words = set([cand.word_list[-1] for cand in hold_line.candidates])
-        reach_blank = reach_line.blanks[-1]
-        for word in last_words:
-            reach_blank.make_rhyme_pool(word, self.vocab)
-        if not reach_blank.rhyme_pool:
-            logging.warning("Cannot find rhymes for templates:\n{}\n{}".format(template_pair[0].raw_text, template_pair[1].raw_text))
-        else:
-            reach_blank.fill = reach_blank.rhyme_fill
-            self.make_blank_pools(reach_line)
+        reach_line.convert_to_rhyme(hold_line.last_words())
+        try:
+            reach_line.make_pools(self.vocab)
             reach_line.make_candidates()
-
+        except RhymeFailure as e:
+            logging.warning(e.msg)
+            return
+        finally:
+            reach_line.restore_from_rhyme()
 
     def populate(self):
-        self.filled_sonnet = []
-        for quatrain in self.quatrains:
-            filled_quat = ["unfilled line" for line in quatrain]
-            filled_quat[0], filled_quat[2] = self.pick_rhymes([quatrain[0], quatrain[2]])
-            filled_quat[1], filled_quat[3] = self.pick_rhymes([quatrain[1], quatrain[3]])
-            self.filled_sonnet.extend(filled_quat)
-        filled_couplet = ["unfilled line" for line in self.couplet]
-        filled_couplet[0], filled_couplet[1] = self.pick_rhymes([self.couplet[0], self.couplet[1]])
-        self.filled_sonnet.extend(filled_couplet)
+        unfilled_sections = [section for section in self.sections if not section.filled]
+        while unfilled_sections:
+            next_section = random.choice(unfilled_sections)
+            for template_pair in next_section.template_pairs:
+                self.pick_rhymes(template_pair)
+            next_section.filled = True
+            unfilled_sections = [section for section in self.sections if not section.filled]
 
     def display(self):
-        for line in self.filled_sonnet:
-            print line.text
+        for section in self.sections:
+            for template in section.template_list:
+                template.polish()
+                print template.filled_line.text
 
-    def make_blank_pools(self, line):
-        for blank in line.blanks:
-            blank.make_pools(self.vocab)
+    def reset(self):
+        logging.info("Resetting...")
+        self.lines, self.sections = [], []
+        self.vocab.used = []
+        for template in self.template_pool:
+            template.cleanup()
 
-class CollectionReader(object):
-    def __init__(self, coll_file):
-        self.coll_file = coll_file
+    def new_sonnet(self):
+        successful = False
+        while not successful:
+            self.reset()
+            try:
+                self.pick_lines()
+                self.arrange_lines()
+                self.populate()
+                successful = True
+            except (ConstructionFailure, PairFailure) as e:
+                logging.warning(e.msg)
+        self.display()
 
-    def read(self):
-        self.collection = []
-        with open(self.coll_file, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                word = row["word"]
-                pos_tag = row["pos_tag"]
-                pron = row["pron"]
-                self.collection.append((word, pos_tag))
-                if pron:
-                    dictionary[word.lower()] = [pron]
-        return self.collection
 
-    def check(self):
-        for word, pos_tag in self.collection:
-            if Word(word).not_in_dict:
-                print ("{} not found in CMU dict. Enter custom pronounciation in file.".format(word))
+class Section(object):
+    def __init__(self, template_list):
+        self.template_list = template_list
+        self.filled = False
+        if len(self.template_list) == 4:
+            self.template_pairs = [[self.template_list[0], self.template_list[2]], [self.template_list[1], self.template_list[3]]]
+        if len(self.template_list) == 2:
+            self.template_pairs = [self.template_list]
 
-class CoupletMaker(object):
-    def __init__(self, templates):
-        self.all_templates = templates
 
-    def generate(self):
-        self.templates = random.sample(self.all_templates, 2)
-        for template in self.templates:
-            template.make_candidates()
-        self.couplet = self.pick_rhymes(self.templates[0], self.templates[1])
+class SonnetFailure(Exception):
+    """Base class for non-error things that cause sonnet creation to fail"""
+    pass
 
-    def pick_rhymes(self, line1, line2, retries = 3):
-        finished = False
-        give_up = False
-        fail_count = 0
-        retries = 3
-        while not finished and not give_up:
-            for candidate1 in line1.candidates:
-                for candidate2 in line2.candidates:
-                    if candidate1.rhymes_with(candidate2):
-                        return [candidate1, candidate2]
-                        finished = True
-            fail_count += 1
-            line1.more_candidates()
-            line2.more_candidates()
-            if fail_count >= retries:
-                give_up = True
+
+class ConstructionFailure(SonnetFailure):
+    """Raised when the selected lines are not properly assembled
+    into quatrains and couplets"""
+    def __init__(self, line_groups, msg):
+        self.line_groups = line_groups
+        self.msg = msg
+
+
+class RhymeFailure(SonnetFailure):
+    def __init__(self, rhyme_blank, msg):
+        '''Raised when unable to form a rhyme pool.'''
+        self.rhyme_blank = rhyme_blank
+        self.msg = msg
+
+
+class PairFailure(SonnetFailure):
+    """Raised when unable to rhyme a pair of lines"""
+    def __init__(self, template_pair, msg):
+        self.template_pair = template_pair
+        self.msg = msg
+
 
 if __name__ == '__main__':
     vocab = Vocab()
