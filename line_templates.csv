@@ -1,6 +1,6 @@
 raw_text,pos_tags,optional,intro_required,outro_required,intro,outro
-Let's go and {} some {} we can't {},VB NN VB,F F F F,F,F,F,F
-Your {} is as {} as the {} you {},NN JJ NN VB,F F F F,F,F,IC,F
+let's go and {} some {} we can't {},VB NN VB,F F F F,F,F,F,F
+your {} is as {} as the {} you {},NN JJ NN VB,F F F F,F,F,IC,F
 "another {}{}, another {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 you {} your {} just to watch them {},VB NNS VB,F F F F,F,F,IC,F
 your {} is a {} {},NN JJ NN,F F F,F,F,IC,F
@@ -17,7 +17,7 @@ remember {}: {} and {},NN NN NN,F F F,F,F,F,NP
 is this {} what it takes to {}?,NN VB,F F,F,F,F,F
 "one more {}{}, one more {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 "{}{} make {}{} out of {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,S2,IC,S2
-and {} makes all the {} seem {}.,NN NNS JJ,FF FF FF,S2,F,S2,F
+and {} make all the {} seem {}.,NNS NNS JJ,FF FF FF,S2,F,S2,F
 this {} is a {}: {} and {}.,NN NN JJ JJ,F F F F,F,F,IC,F
 your {} is a {}{}: {},NN JJ NN JJ JJ,F T F F,F,S3,IC,S3
 and {} with {}{}.,VBG JJ NN,F T F,S3,F,S3,F
@@ -33,7 +33,7 @@ and the {}{} will be our {},JJ NNS NNS,T F F,S5,F,S5,F
 a {}{} is not enough. I need,JJ NN,T F,F,S6,IC,S6
 "I know you're {}{}, but I hope",RB JJ,T F,F,IC,F,DC
 "and nothing {}, not {}, not {},",VBZ NNS NNS,F F F,IC,F,DC,S7
-not {}{} or even {}{} ,JJ NNS JJ NN,T F T F,S7,F,F,NP
+not {}{} or even {}{},JJ NNS JJ NN,T F T F,S7,F,F,NP
 could {} the way the {}{} {},VB JJ NN VBD,F T F F,NP,F,VP,F
 and all we have to {} is {}{},VB JJ NN,F T F,IC,F,DC,IC
 "when all the {} are {} and {},",NNS JJ JJ,F F F,F,IC,DC,DC

@@ -97,7 +97,10 @@ class Word(object):
         if not self.multi_prons:
             self.last_sounds.append(self.last_sound(self.pron))
         else:
-            self.last_sounds = [self.last_sound(pron) for pron in self.pron]
+            self.last_sounds = [self.last_sound(pron) for pron in self.pron if self.last_sound(pron) is not None]
+            #Some words have totally unstressed pronounciations, which leads them returning "None" for last sound
+            #Then, if you get two, you get incorrect rhymes as None matches None.
+            #Have to filter them out.
 
     def rhymes_with(self, other_word):
         if other_word.text == self.text:
@@ -333,7 +336,7 @@ class Blank(object):
         self.pos_tag = pos_tag
         self.optional = optional
         self.collection_pool = []
-        self.collection_prob = 0.4
+        self.collection_prob = 0.7
 
     def fill(self):
         if self.collection_pool:
@@ -434,7 +437,7 @@ class Vocab(object):
         self.collection_pool = {}
         self.uncommon_tag_words = {}
         self.used =[]
-        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "queers", "faggot", "faggots", "nigger", "niggers"]
+        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers"]
         #Words in the dictionary that I don't want to use,
         #Unnatural sounding or... well.
 
@@ -681,6 +684,10 @@ class Section(object):
         if len(self.template_list) == 2:
             self.template_pairs = [self.template_list]
 
+        self.interesting = 5
+        self.human = 5
+        self.offensive = 0
+
 class Sonnet(object):
     def __init__(self, sections):
         self.sections = sections
@@ -699,9 +706,6 @@ class Sonnet(object):
 
     def make_text(self):
         self.text = "".join(["{}\n".format(template.filled_line.text) for template in self.ordered_templates])
-            
-
-
 
 class SonnetFailure(Exception):
     """Base class for non-error things that cause sonnet creation to fail"""
