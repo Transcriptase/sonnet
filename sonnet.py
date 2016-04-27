@@ -508,6 +508,11 @@ class Vocab(object):
     def not_used(self, word_list):
         return [word for word in word_list if word not in self.used]
 
+    def add_random_collections(self, number = 2):
+        coll_ids = random.sample(self.collections.keys(), number)
+        for coll_id in coll_ids:
+            self.add_collection(coll_id)
+
 
 class SonnetWriter(object):
     """docstring for SonnetWriter"""
@@ -688,6 +693,18 @@ class Section(object):
         self.human = 5
         self.offensive = 0
 
+    def polish(self):
+        for template in self.template_list:
+            template.polish()
+
+    def make_text(self):
+        self.text = "".join(["{}\n".format(template.filled_line.text) for template in self.template_list])
+
+    def get_user_rating(self):
+        self.interesting  = input("Interesting? (0-10):")
+        self.human = input("Human? (0-10):")
+        self.offensive = input("Offensive? (0-10):")
+
 class Sonnet(object):
     def __init__(self, sections):
         self.sections = sections
@@ -701,11 +718,12 @@ class Sonnet(object):
         return self.text
 
     def polish(self):
-        for template in self.ordered_templates:
-            template.polish()
+        for section in self.sections:
+            section.polish()
+            section.make_text()
 
     def make_text(self):
-        self.text = "".join(["{}\n".format(template.filled_line.text) for template in self.ordered_templates])
+        self.text = "".join([(section.text) for section in self.sections])
 
 class SonnetFailure(Exception):
     """Base class for non-error things that cause sonnet creation to fail"""
