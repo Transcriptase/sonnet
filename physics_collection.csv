@@ -46,3 +46,5 @@ colliding,VBG,
 rotating,JJ,
 colliding,JJ,
 symmetry,NN,
+equation,NN
+equations,NNS

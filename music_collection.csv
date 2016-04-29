@@ -30,10 +30,10 @@ backbeat,NN,B AE1 K B IY0 T
 snare,VB,
 snared,VBD,
 snares,VBZ,
-music,NN
-musics,NNS
-string,NN
-strings,NNS
-rest,NN
-bass,NN
-beat,NN
+music,NN,
+musics,NNS,
+string,NN,
+strings,NNS,
+rest,NN,
+bass,NN,B EY1 S
+beat,NN,
