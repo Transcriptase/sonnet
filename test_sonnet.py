@@ -168,7 +168,28 @@ class TestLine(object):
         b.end_with_period()
 
         eq_(a.text, "This one is easy.")
-        eq_(b.text, "This needs to have the coomma stripped.")
+        eq_(b.text, "This needs to have the comma stripped.")
+
+    def test_same_choices(self):
+        a = snt.Line("test")
+        b = snt.Line("test")
+        a.choices = ["yes", "", "no", "maybe"]
+        b.choices = ["banana", "apple", "", "pear"]
+
+        ok_(not a.same_choices(b))
+
+        c = snt.Line("test")
+        c.choices = ["yes", "", "elephant", "zebra"]
+
+        ok_(a.same_choices(c))
+
+    def test_a_to_an(self):
+        a = snt.Line("Eve ate a apple")
+
+        a.change_a_to_an()
+
+        ok_(not a.text == "Eve ate a apple")
+        eq_(a.text, "Eve ate an apple")
 
 class TestTemplate(object):
     def test_list_maker(self):

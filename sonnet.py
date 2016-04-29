@@ -9,6 +9,7 @@ import re
 import random
 import csv
 import glob
+from itertools import tee, islice, chain, izip
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -184,7 +185,7 @@ class Line(object):
 
     def same_choices(self, other_line):
         for choice in self.choices:
-            if choice in other_line.choices:
+            if choice in other_line.choices and choice != "":
                 return True
         return False
 
@@ -210,6 +211,22 @@ class Line(object):
                 return False
             seen.add(choice)
         return True
+
+
+    def change_a_to_an(self):
+        all_words = self.text.split(" ")
+        words, next_words = tee(all_words, 2)
+        next_words = chain(islice(next_words, 1, None), [None])
+        linked_words = izip(words, next_words)
+        vowels = ["a", "e", "i", "o", "u"]
+        for index, (word, next_word) in enumerate(linked_words):
+            if word.lower() == "a":
+                for vowel in vowels:
+                    if next_word.startswith(vowel):
+                        all_words[index] = "an"
+                        self.text = " ".join(all_words)
+
+
 
 
 class Template(object):
@@ -286,6 +303,7 @@ class Template(object):
             blank.make_pools(vocab)
 
     def polish(self):
+        self.filled_line.change_a_to_an()
         if self.sentence_start:
             self.filled_line.capitalize_first_word()
         sentence_ending_punc = [".", "?", "!"]
