@@ -1,5 +1,5 @@
-#Author: Russell Williams
-#Email: ruwilliams@genedx.com
+# Author: Russell Williams
+# Email: ruwilliams@genedx.com
 
 from nose.tools import *
 import sonnet as snt
@@ -7,6 +7,7 @@ import random
 
 vocab = snt.Vocab()
 templates = snt.TemplateReader("line_templates.csv").read()
+
 
 class TestWord(object):
     def test_look_up(self):
@@ -72,15 +73,15 @@ class TestWord(object):
         e.find_last_sounds()
         eq_(e.last_sounds, [["EH", "R", "IY"]])
 
-
     def test_rhymes(self):
-        #ok_(snt.Word("frog").rhymes_with(snt.Word("dog")))
-        #Will need to put in some flexibility about slant rhymes
-        #(At least slant according to the CMU, these just rhyme when I say them)
-        #Do people really say "FRAHG" and not "FROWG"?
+        # ok_(snt.Word("frog").rhymes_with(snt.Word("dog")))
+        # Will need to put in some flexibility about slant rhymes
+        # (At least slant according to the CMU, these just rhyme when I say them)
+        # Do people really say "FRAHG" and not "FROWG"?
         ok_(snt.Word("dog").rhymes_with(snt.Word("log")))
         ok_(not snt.Word("frog").rhymes_with(snt.Word("fraud")))
         ok_(snt.Word("proprietary").rhymes_with(snt.Word("dairy")))
+
 
 class TestLine(object):
     def test_make_word_list(self):
@@ -108,7 +109,7 @@ class TestLine(object):
         eq_(len(a.syl_strings[0]), 10)
 
         b = snt.Line("fire radiant")
-        #words with ambiguous number of syllables
+        # words with ambiguous number of syllables
         b.make_syl_strings()
         eq_(len(b.syl_strings), 4)
         ok_("xsu" in b.syl_strings)
@@ -137,7 +138,7 @@ class TestLine(object):
         ok_(d.scans())
 
         e = snt.Line("If we shadows have offended, think but")
-        #10 syllables, trochaic
+        # 10 syllables, trochaic
         ok_(not e.scans())
 
         f = snt.Line("that alters when it bananas finds")
@@ -191,12 +192,13 @@ class TestLine(object):
         ok_(not a.text == "Eve ate a apple")
         eq_(a.text, "Eve ate an apple")
 
+
 class TestTemplate(object):
     def test_list_maker(self):
         nouns = vocab.common_words("NN")
         eq_(len(nouns), 993)
         ok_("time" in nouns)
-        
+
     def test_blank_fill(self):
         a = snt.Blank("VB")
         a.common_pool = vocab.make_common_pool(a.pos_tag)
@@ -237,9 +239,10 @@ class TestTemplate(object):
 
         eq_(t.filled_line.text, "This should be capitalized and end in a period.")
 
+
 class TestSonnetWriter(object):
     def setup(self):
-        self.sw = snt.SonnetWriter(vocab = vocab)
+        self.sw = snt.SonnetWriter(vocab=vocab)
         self.sw.template_pool = templates
 
     def teardown(self):
@@ -249,16 +252,16 @@ class TestSonnetWriter(object):
         self.sw.lines = templates[:13]
 
         t1 = templates[0]
-        #No transitions, should not be extended
+        # No transitions, should not be extended
         matched_t1 = self.sw.match_transitions(t1)
         eq_(len(matched_t1), 1)
 
         t2 = templates[10]
-        #Needs intro, no outro
+        # Needs intro, no outro
         matched_t2 = self.sw.match_transitions(t2)
         ok_(len(matched_t2) >= 2)
         eq_(matched_t2[-1], t2)
-        #Should be last in the list since no outro will be added
+        # Should be last in the list since no outro will be added
 
     def test_pick_lines(self):
         self.sw.pick_lines()
@@ -293,8 +296,8 @@ class TestSonnetWriter(object):
 
         self.sw.force_rhyme_cands(tp)
 
-        #Make sure the last blank is correctly no longer a rhyme blank after
-        #candidates have been generated
+        # Make sure the last blank is correctly no longer a rhyme blank after
+        # candidates have been generated
         for template in tp:
             ok_(isinstance(template.blanks[-1], snt.Blank))
             ok_(not isinstance(template.blanks[-1], snt.RhymeBlank))
@@ -305,6 +308,7 @@ class TestSonnetWriter(object):
         for template in self.sw.template_pool:
             for blank in template.blanks:
                 eq_(blank.collection_prob, 0.6)
+
 
 class TestCollectionReader(object):
     def __init__(self):
@@ -317,10 +321,12 @@ class TestCollectionReader(object):
         ok_(isinstance(collection[0], tuple))
         eq_(("November", "NN"), collection[0])
 
+
 class TestCollections(object):
     def test_add_collection(self):
         vocab.add_collection("autumn")
         ok_("November" in vocab.collection_pool["NN"])
+
 
 class TestCollectionManager(object):
     def setup(self):
@@ -332,6 +338,7 @@ class TestCollectionManager(object):
         ok_("autumn" in self.cm.collections)
         ok_(isinstance(self.cm.collections["autumn"], snt.Collection))
         ok_(self.cm.collections["autumn"].id, "autumn")
+
 
 class TestVocab(object):
     def test_rhyming_words(self):
