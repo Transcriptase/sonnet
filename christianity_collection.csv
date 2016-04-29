@@ -35,7 +35,6 @@ wandering,VBG
 river,NN
 rivers,NNS
 desert,NN
-desert,JJ
 road,NN
 roads,NNS
 resurrection,NN
@@ -56,3 +55,5 @@ storm,NN
 storms,NNS
 blind,JJ
 blinded,JJ
+hymn,NN
+hymns,NNS
