@@ -37,3 +37,6 @@ strings,NNS,
 rest,NN,
 bass,NN,B EY1 S
 beat,NN,
+solo,NN,
+piano,NN,
+pianos,NNS,

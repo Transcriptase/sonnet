@@ -7,7 +7,7 @@ your {} is a {} {},NN JJ NN,F F F,F,F,IC,F
 a {} is a {} that never {},NN NN VBD,F F F,F,F,F,F
 the {} {} and the {} {},NN VBD NN VBD,F F F F,F,F,IC,F
 "be {}: {}, {}, {}",JJ VB VB VB,F F F F,F,F,IC,F
-the {} {} couldn't {},JJT NN VB,F F F,F,F,IC,VP
+the {} {} couldn't {},JJT NN VB,F F F,F,F,IC,IC
 "each {}{}, each {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 is just a {}{} in a {},JJ NN NN,T F F,NP,F,VP,F
 {} like {}{}: {} and {},VBD JJ NNS JJ JJ,F T F F F,NP,F,VP,F
@@ -17,11 +17,11 @@ remember {}: {} and {},NN NN NN,F F F,F,F,F,NP
 is this {} what it takes to {}?,NN VB,F F,F,F,F,F
 "one more {}{}, one more {}{}",JJ NN JJ NN,T F T F,F,F,NP,NP
 "{}{} make {}{} out of {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,S2,IC,S2
-and {} make all the {} seem {}.,NNS NNS JJ,FF FF FF,S2,F,S2,F
-this {} is a {}: {} and {}.,NN NN JJ JJ,F F F F,F,F,IC,F
+and {} make all the {} seem {},NNS NNS JJ,FF FF FF,S2,F,S2,F
+this {} is a {}: {} and {},NN NN JJ JJ,F F F F,F,F,IC,F
 your {} is a {}{}: {},NN JJ NN JJ JJ,F T F F,F,S3,IC,S3
-and {} with {}{}.,VBG JJ NN,F T F,S3,F,S3,F
-were {} with the {}{}.,VBG JJT NN,F T F,NP,F,VP,F
+and {} with {}{},VBG JJ NN,F T F,S3,F,S3,F
+were {} with the {}{},VBG JJT NN,F T F,NP,F,VP,F
 "so {}, so {}, but then",JJ JJ,F F,F,IC,F,DC
 I can't believe it doesn't {} the {},VB NN,F F,F,F,IC,F
 "then {}{}, then {}{}, until",JJ NN JJ NN,T F T F,S4,IC,S4,DC
@@ -40,3 +40,13 @@ and all we have to {} is {}{},VB JJ NN,F T F,IC,F,DC,IC
 "in the {}{}, the {}{}, the {}{},",JJ NNS JJ NNS JJ NNS,T F T F T F,F,IC,DC,DC
 "or waste a second {} for a {},",VBG NN,F F,IC,F,DC,DC
 the {} {}. New {} will {},NN VBZ NNS VB,F F F F,F,F,IC,IC
+or trade this {}{} for {},JJ NN NNS,T F F,IC,F,DC,DC
+{}{} might {}. I might {},JJ NN VB VB,T F F F,F,F,IC,IC
+"will {}, and {}, and {}{}",VB VB RB VB,F F T F,NP,F,VP,IC
+"{} and {}, with {}{}",JJ JJ JJ NNS,F F T F,NP,VP,F,F
+"although we {} our {} for the {},",VB NNS NN,F F F,F,IC,DC,DC
+"{}, {}, {}, {}, {}",JJ JJ JJ JJ JJ,F F F F F,NP,F,F,F
+until the {} {} and {},NNS VBD VBD,F F F,IC,F,DC,DC
+{} were {} than {},NNS JJR NNS,F F F ,F,F,IC,IC
+"{}, and {}, and {}, and {}",VBD VBD VBD VBD,F F F F,NP,F,VP,IC
+the {} {} were {},JJT NNS VBG,F F F,F,F,IC,IC
