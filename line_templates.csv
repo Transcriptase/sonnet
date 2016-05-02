@@ -41,8 +41,8 @@ and all we have to {} is {}{},VB JJ NN,F T F,IC,F,DC,IC
 "or waste a second {} for a {},",VBG NN,F F,IC,F,DC,DC
 the {} {}. New {} will {},NN VBZ NNS VB,F F F F,F,F,IC,IC
 or trade this {}{} for {},JJ NN NNS,T F F,IC,F,DC,DC
-{}{} might {}. I might {},JJ NN VB VB,T F F F,F,F,IC,IC
-"will {}, and {}, and {}{}",VB VB RB VB,F F T F,NP,F,VP,IC
+{}{} might {}. I might {},JJ NNS VB VB,T F F F,F,F,IC,IC
+"will {}, and {}, and {}{}",VB VB VB RB,F F F T,NP,F,VP,IC
 "{} and {}, with {}{}",JJ JJ JJ NNS,F F T F,NP,VP,F,F
 "although we {} our {} for the {},",VB NNS NN,F F F,F,IC,DC,DC
 "{}, {}, {}, {}, {}",JJ JJ JJ JJ JJ,F F F F F,NP,F,F,F
