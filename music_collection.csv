@@ -40,3 +40,4 @@ beat,NN,
 solo,NN,
 piano,NN,
 pianos,NNS,
+staccato,JJ,S T AH0 K AA T OW0

@@ -30,13 +30,26 @@ dampest,JJT,D AE1 M P AH0 S T
 dew,NN,
 snails,NNS,
 snail,NN,
-caterpillar,NN
-caterpillars,NNS
-sting,VB
-stings,VBZ
-damper,JJR
-smell,JJ
-smells,JJS
-clay,NN
-root,NN
-roots,NNS
+caterpillar,NN,
+caterpillars,NNS,
+sting,VB,
+stings,VBZ,
+damper,JJR,
+smell,VB,
+smells,VBZ,
+clay,NN,
+root,NN,
+roots,NNS,
+sunlit,JJ,
+twilight,NN,T W AY1 L AY0 T
+twilights,NNS,T W AY1 L AY0 T Z
+cloudy,JJ,
+Eden,NN,
+thorn,NN,
+thorns,NNS
+pricked,VBD
+soil,NN
+drip,VB
+dripped,VBD
+dripping,VBG
+dripping,JJ
