@@ -221,16 +221,17 @@ class Line(object):
 
     def change_a_to_an(self):
         all_words = self.text.split(" ")
-        words, next_words = tee(all_words, 2)
+        previous_words, words, next_words = tee(all_words, 3)
         next_words = chain(islice(next_words, 1, None), [None])
         linked_words = izip(words, next_words)
         vowels = ["a", "e", "i", "o", "u"]
         for index, (word, next_word) in enumerate(linked_words):
-            if word.lower() == "a":
-                for vowel in vowels:
-                    if next_word.startswith(vowel):
-                        all_words[index] = "an"
-                        self.text = " ".join(all_words)
+            for original, altered in zip(["A", "a"], ["An", "an"]):
+                if word == original:
+                    for vowel in vowels:
+                        if next_word.startswith(vowel) or next_word.startswith(vowel.upper()):
+                            all_words[index] = altered
+                            self.text = " ".join(all_words)
 
 
 class Template(object):

@@ -186,11 +186,21 @@ class TestLine(object):
 
     def test_a_to_an(self):
         a = snt.Line("Eve ate a apple")
+        b = snt.Line("First sentence. A apple")
+        c = snt.Line("First sentence. A Eden")
 
         a.change_a_to_an()
+        b.change_a_to_an()
+        c.change_a_to_an()
 
         ok_(not a.text == "Eve ate a apple")
         eq_(a.text, "Eve ate an apple")
+
+        ok_(not b.text == "First sentence. A apple")
+        eq_(b.text, "First sentence. An apple")
+
+        ok_(not c.text == "First sentence. A Eden")
+        eq_(c.text, "First sentence. An Eden")
 
 
 class TestTemplate(object):
