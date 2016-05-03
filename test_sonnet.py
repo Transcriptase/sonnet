@@ -254,6 +254,7 @@ class TestSonnetWriter(object):
     def setup(self):
         self.sw = snt.SonnetWriter(vocab=vocab)
         self.sw.template_pool = templates
+        self.sw.current_poem = snt.Sonnet()
 
     def teardown(self):
         self.sw.reset()
@@ -289,10 +290,11 @@ class TestSonnetWriter(object):
 
         self.sw.arrange_lines()
 
-        eq_(len(self.sw.sections), 4)
-        for section in self.sw.sections[:2]:
+        eq_(len(self.sw.current_poem.sections), 4)
+        for section in self.sw.current_poem.sections[:2]:
             eq_(len(section.template_list), 4)
-        eq_(len(self.sw.sections[-1].template_list), 2)
+            eq_(sum([isinstance(temp, snt.Template) for temp in section.template_list]), 4)
+        eq_(len(self.sw.current_poem.sections[-1].template_list), 2)
 
     def test_pick_hold_line(self):
         nonflex_t = templates[23]
@@ -311,6 +313,14 @@ class TestSonnetWriter(object):
         for template in tp:
             ok_(isinstance(template.blanks[-1], snt.Blank))
             ok_(not isinstance(template.blanks[-1], snt.RhymeBlank))
+
+    def test_pick_rhymes(self):
+        tp = [templates[0], templates[1]]
+
+        self.sw.pick_rhymes(tp)
+
+        for t in tp:
+            ok_(isinstance(t.filled_line, snt.Line))
 
     def test_set_coll_prob(self):
         self.sw.set_coll_prob(.6)

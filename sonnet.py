@@ -102,9 +102,9 @@ class Word(object):
             self.last_sounds.append(self.last_sound(self.pron))
         else:
             self.last_sounds = [self.last_sound(pron) for pron in self.pron if self.last_sound(pron) is not None]
-            #Some words have totally unstressed pronounciations, which leads them returning "None" for last sound
-            #Then, if you get two, you get incorrect rhymes as None matches None.
-            #Have to filter them out.
+            # Some words have totally unstressed pronounciations, which leads them returning "None" for last sound
+            # Then, if you get two, you get incorrect rhymes as None matches None.
+            # Have to filter them out.
 
     def rhymes_with(self, other_word):
         if other_word.text == self.text:
@@ -459,8 +459,9 @@ class Vocab(object):
         self.common_tag_words = {}
         self.collection_pool = {}
         self.uncommon_tag_words = {}
-        self.used =[]
-        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers", "gay"]
+        self.used = []
+        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers",
+                          "gay"]
         # Words in the dictionary that I don't want to use,
         # Unnatural sounding or... well.
 
@@ -532,7 +533,7 @@ class Vocab(object):
     def not_used(self, word_list):
         return [word for word in word_list if word not in self.used]
 
-    def add_random_collections(self, number = 2):
+    def add_random_collections(self, number=2):
         coll_ids = random.sample(self.collections.keys(), number)
         for coll_id in coll_ids:
             self.add_collection(coll_id)
@@ -549,12 +550,12 @@ class SonnetWriter(object):
 
     def pick_lines(self):
         self.lines, self.line_groups = [], []
-        while len(self.lines) < 14:
+        while len(self.lines) < sum(self.current_poem.section_lengths):
             available_templates = [template for template in self.template_pool if template not in self.lines]
             new_template = random.choice(available_templates)
             new_lines = self.match_transitions(new_template)
             if new_lines:
-                if len(self.lines) + len(new_lines) <= 14:
+                if len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
                     self.lines.extend(new_lines)
                     self.line_groups.append(new_lines)
                     new_lines[0].sentence_start = True
@@ -584,37 +585,23 @@ class SonnetWriter(object):
                 return False
         return complete_sentence
 
+
     def arrange_lines(self):
-        self.sections = []
-        quatrains = []
-        couplet = []
-        fail_count = 0
-        while len(couplet) < 2:
-            couplet_candidate = random.choice(self.line_groups)
-            if len(couplet) + len(couplet_candidate) <= 2:
-                couplet.extend(couplet_candidate)
-                self.line_groups.remove(couplet_candidate)
-            else:
-                fail_count += 1
-            if fail_count >= 20:
-                msg = "Unable to fill couplet from chosen templates."
-                raise ConstructionFailure(self.line_groups, msg)
-        for ii in xrange(3):
-            new_quatrain = []
+        for section in sorted(self.current_poem.sections, key= lambda x: len(x.template_list)):
+            # Go smallest to largest because small sections are more restrictive
             fail_count = 0
-            while len(new_quatrain) < 4:
-                quatrain_candidate = random.choice(self.line_groups)
-                if len(new_quatrain) + len(quatrain_candidate) <= 4:
-                    new_quatrain.extend(quatrain_candidate)
-                    self.line_groups.remove(quatrain_candidate)
+            new_section = []
+            while len(new_section) < len(section.template_list):
+                candidate = random.choice(self.line_groups)
+                if len(new_section) + len(candidate) <= len(section.template_list):
+                    new_section.extend(candidate)
+                    self.line_groups.remove(candidate)
                 else:
                     fail_count += 1
                 if fail_count >= 20:
-                    msg = "Unable to fill quatrain {} from chosen templates.".format(ii + 1)
+                    msg = "Unable to fill section of length {} from remaining templates.".format(len(section.template_list))
                     raise ConstructionFailure(self.line_groups, msg)
-            quatrains.append(new_quatrain)
-        self.sections.extend([Section(quatrain) for quatrain in quatrains])
-        self.sections.append(Section(couplet))
+            section.template_list = new_section
 
     def pick_rhymes(self, template_pair, retries=5):
         fail_count = 0
@@ -677,13 +664,11 @@ class SonnetWriter(object):
                 blank.collection_prob = coll_prob
 
     def populate(self):
-        unfilled_sections = [section for section in self.sections if not section.filled]
-        while unfilled_sections:
-            next_section = random.choice(unfilled_sections)
-            for template_pair in next_section.template_pairs:
+        while self.current_poem.unfilled_sections():
+            next_section = random.choice(self.current_poem.unfilled_sections())
+            for template_pair in next_section.template_pairs():
                 self.pick_rhymes(template_pair)
             next_section.filled = True
-            unfilled_sections = [section for section in self.sections if not section.filled]
 
     def reset(self):
         logging.info("Resetting...")
@@ -692,7 +677,8 @@ class SonnetWriter(object):
         for template in self.template_pool:
             template.cleanup()
 
-    def new_sonnet(self):
+    def new_poem(self, poem):
+        self.current_poem = poem
         successful = False
         while not successful:
             self.reset()
@@ -704,18 +690,14 @@ class SonnetWriter(object):
             except (ConstructionFailure, PairFailure, ScanFailure) as e:
                 logging.warning(e.msg)
         logging.info("Sonnet creation successful.")
-        return Sonnet(self.sections)
+        return self.current_poem
 
 
 class Section(object):
-    def __init__(self, template_list):
-        self.template_list = template_list
+    def __init__(self, num_lines):
+        self.template_list = [None for _ in xrange(num_lines)]
         self.filled = False
-        if len(self.template_list) == 4:
-            self.template_pairs = [[self.template_list[0], self.template_list[2]],
-                                   [self.template_list[1], self.template_list[3]]]
-        if len(self.template_list) == 2:
-            self.template_pairs = [self.template_list]
+
 
         self.interesting = None
         self.human = None
@@ -726,25 +708,35 @@ class Section(object):
             template.polish()
 
     def make_text(self):
+        self.polish()
         self.lines = [template.filled_line for template in self.template_list]
         self.text = "".join(["{}\n".format(line.text) for line in self.lines])
 
+    def template_pairs(self):
+        if len(self.template_list) == 4:
+            template_pairs = [[self.template_list[0], self.template_list[2]],
+                                   [self.template_list[1], self.template_list[3]]]
+        if len(self.template_list) == 2:
+            template_pairs = [self.template_list]
+        return template_pairs
+
     def get_user_rating(self):
-        self.interesting  = input("Interesting? (0-10):")
+        self.interesting = input("Interesting? (0-10):")
         self.human = input("Human? (0-10):")
         self.offensive = input("Offensive? (0-10):")
 
-class Sonnet(object):
-    def __init__(self, sections):
-        self.sections = sections
+class Poem(object):
+    def __init__(self, section_lengths):
+        self.section_lengths = section_lengths
+        self.sections = [Section(length) for length in section_lengths]
         self.ordered_templates = []
-        for section in self.sections:
-            self.ordered_templates.extend(section.template_list)
-        self.polish()
-        self.make_text()
 
     def __str__(self):
         return self.text
+
+    def ordered_templates(self):
+        for section in self.sections:
+            self.ordered_templates.extend(section.template_list)
 
     def polish(self):
         for section in self.sections:
@@ -752,7 +744,26 @@ class Sonnet(object):
             section.make_text()
 
     def make_text(self):
-        self.text = "".join([(section.text) for section in self.sections])
+        for section in self.sections:
+            section.make_text()
+        self.text = "".join([section.text for section in self.sections])
+
+    def unfilled_sections(self):
+        return [section for section in self.sections if not section.filled]
+
+
+class Sonnet(Poem):
+    def __init__(self):
+        super(Sonnet, self).__init__([4, 4, 4, 2])
+
+
+
+
+class HeroicCouplets(Poem):
+    def __init__(self, num_couplets):
+        super(HeroicCouplets, self).__init__([2 for _ in xrange(num_couplets)])
+
+
 
 class SonnetFailure(Exception):
     """Base class for non-error things that cause sonnet creation to fail"""
@@ -795,7 +806,10 @@ if __name__ == '__main__':
     sw.load_templates("line_templates.csv")
     finished = False
     while not finished:
-        sw.new_sonnet()
+        s  = Sonnet()
+        sw.new_poem(s)
+        s.make_text()
+        print s.text
         prompt = raw_input("\nAnother? (y/n)")
         if prompt != "y":
             finished = True
