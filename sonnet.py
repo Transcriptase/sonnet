@@ -128,6 +128,9 @@ class Line(object):
         self.make_syl_strings()
         self.choices = []
 
+    def __repr__(self):
+        return "Line({})".format(self.text)
+
     def make_word_list(self):
         word_list = nltk.word_tokenize(self.text)
         # Combine contractions
@@ -248,6 +251,9 @@ class Template(object):
         self.filled_line = None
         self.sentence_start = False
         self.sentence_end = False
+
+    def __repr__(self):
+        return "Template({})".format(self.raw_text)
 
     def populate(self):
         choices = ["" for _ in self.blanks]
@@ -672,7 +678,8 @@ class SonnetWriter(object):
 
     def reset(self):
         logging.info("Resetting...")
-        self.lines, self.sections = [], []
+        self.lines = []
+        self.current_poem.reset()
         self.vocab.used = []
         for template in self.template_pool:
             template.cleanup()
@@ -689,6 +696,7 @@ class SonnetWriter(object):
                 successful = True
             except (ConstructionFailure, PairFailure, ScanFailure) as e:
                 logging.warning(e.msg)
+        self.current_poem.make_text()
         logging.info("Sonnet creation successful.")
         return self.current_poem
 
@@ -729,14 +737,19 @@ class Poem(object):
     def __init__(self, section_lengths):
         self.section_lengths = section_lengths
         self.sections = [Section(length) for length in section_lengths]
-        self.ordered_templates = []
 
     def __str__(self):
         return self.text
 
-    def ordered_templates(self):
+    def reset(self):
         for section in self.sections:
-            self.ordered_templates.extend(section.template_list)
+            section.filled = False
+
+    def ordered_templates(self):
+        ordered_templates = []
+        for section in self.sections:
+            ordered_templates.extend(section.template_list)
+        return ordered_templates
 
     def polish(self):
         for section in self.sections:

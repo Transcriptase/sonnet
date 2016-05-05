@@ -3,12 +3,18 @@ from tensorflow.contrib import skflow
 import numpy as np
 import tensorflow as tf
 import sklearn
-import random
+import glob
+
 
 
 ### Load training data
-with open("rated_batch_01.pickle", "r") as f:
-    rated_sonnets = pickle.load(f)
+rated_batches = glob.glob("rated*.pickle")
+rated_sonnets = []
+
+for batch in rated_batches:
+    with open("rated_batch_01.pickle", "r") as f:
+        rated_sonnets.extend(pickle.load(f))
+
 
 cv = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
 #Chosen because of sparse nature of data, but don't want to use the
@@ -22,18 +28,18 @@ def convert_to_sequence(section):
             sequence.append(choice)
     return sequence
 
-def bin_rating(rating):
-    if rating < 4:
+def bin_rating(rating, low_break, high_break):
+    if rating < low_break:
         return "low"
-    elif rating <6:
+    elif rating < high_break:
         return "moderate"
     else:
         return "high"
 
-
 seqs = [convert_to_sequence(section) for sonnet in rated_sonnets for section in sonnet.sections]
-human_score_cat = [bin_rating(section.human) for sonnet in rated_sonnets for section in sonnet.sections]
-interest_score_cat = [bin_rating(section.interesting) for sonnet in rated_sonnets for section in sonnet.sections]
+human_score_cat = [bin_rating(section.human, 4, 6) for sonnet in rated_sonnets for section in sonnet.sections]
+interest_score_cat = [bin_rating(section.interesting, 4, 7) for sonnet in rated_sonnets for section in sonnet.sections]
+offense_score_cat = [bin_rating(section.offensive, 1, 4) for sonnet in rated_sonnets for section in sonnet.sections]
 
 
 for seq in seqs:
@@ -56,17 +62,21 @@ def transform(seqs):
 
 X = np.array(list(transform(seqs)))
 
-cv_y = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
-for row in human_score_cat:
-    cv_y.add(row)
-cv_y.freeze()
 
-def transform_cat(cat):
-    for rating in cat:
-        yield(cv_y.get(rating))
+def prepare_rating_cats(binned_ratings):
+    cv_y = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
+    for row in binned_ratings:
+        cv_y.add(row)
+    cv_y.freeze()
 
-y = np.array(list(transform_cat(human_score_cat)))
+    def transform_cat(cat):
+        for rating in cat:
+            yield (cv_y.get(rating))
 
+    y = np.array(list(transform_cat(binned_ratings)))
+    return y
+
+y = prepare_rating_cats(interest_score_cat)
 X_train, X_test, y_train, y_test = sklearn.cross_validation.train_test_split(X, y, test_size = 0.2, random_state = 1)
 
 EMBEDDING_SIZE = 50
@@ -88,10 +98,12 @@ def rnn_model(X, y):
     #over output classes
     return skflow.models.logistic_regression(encoding, y)
 
-classifier = skflow.TensorFlowEstimator(model_fn = rnn_model, n_classes = len(cv_y._mapping), steps = 1000, optimizer = "Adam",
+classifier = skflow.TensorFlowEstimator(model_fn = rnn_model, n_classes = 4, steps = 1000, optimizer = "Adam",
     learning_rate = 0.01, continue_training = True)
 
 while True:
     classifier.fit(X_train, y_train, logdir = '/tmp/snt_model')
     score = sklearn.metrics.accuracy_score(y_test, classifier.predict(X_test))
     print("Accuracy: {0:f}".format(score))
+
+classifier.save("models/interest_classifier_20160506")
