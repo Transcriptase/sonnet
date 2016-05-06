@@ -94,8 +94,10 @@ def rnn_model(X, y):
     choice_list = skflow.ops.split_squeeze(1, MAX_SEQUENCE_LENGTH, choice_vectors)
     #Create Gated Recurrent Unit cell with hidden size EMBEDDING_SIZE
     cell = tf.nn.rnn_cell.GRUCell(EMBEDDING_SIZE)
+    cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=0.5)
+    cells = tf.nn.rnn_cell.MultiRNNCell([cell] * 3)
     #Create the network to length MAX_SEQUENCE_LENGTH and pass choice_list to each unit
-    _, encoding = tf.nn.rnn(cell, choice_list, dtype = tf.float32)
+    _, encoding = tf.nn.rnn(cells, choice_list, dtype = tf.float32)
     #Use encoding of last step and pass it a features for logistic regression
     #over output classes
     return skflow.models.logistic_regression(encoding, y)
