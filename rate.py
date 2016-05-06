@@ -17,6 +17,15 @@ def parse_args(args):
     parsed_args = parser.parse_args(args)
     return vars(parsed_args)
 
+def rate_section(section):
+    print section.text
+    print "\n"
+    section.get_user_rating()
+
+def rate_sonnet(sonnet):
+    for section in sonnet.sections:
+        rate_section(section)
+
 
 def main(args):
     with open(args["input"], "r") as f:
@@ -24,10 +33,7 @@ def main(args):
     unrated_sonnets = [sonnet for sonnet in all_sonnets if not sonnet.sections[0].interesting]
     rated_sonnets = [sonnet for sonnet in all_sonnets if sonnet.sections[0].interesting]
     for sonnet in unrated_sonnets:
-        for section in sonnet.sections:
-            print section.text
-            section.get_user_rating()
-        rated_sonnets.append(sonnet)
+        rate_sonnet(sonnet)
 
     with open(args["output"], "wb") as f:
         pickle.dump(rated_sonnets, f)

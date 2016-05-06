@@ -12,7 +12,7 @@ rated_batches = glob.glob("rated*.pickle")
 rated_sonnets = []
 
 for batch in rated_batches:
-    with open("rated_batch_01.pickle", "r") as f:
+    with open(batch, "r") as f:
         rated_sonnets.extend(pickle.load(f))
 
 
@@ -62,13 +62,14 @@ def transform(seqs):
 
 X = np.array(list(transform(seqs)))
 
-
-def prepare_rating_cats(binned_ratings):
+def prepare_cv(binned_ratings):
     cv_y = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
     for row in binned_ratings:
         cv_y.add(row)
     cv_y.freeze()
+    return cv_y
 
+def prepare_rating_cats(binned_ratings, cv_y):
     def transform_cat(cat):
         for rating in cat:
             yield (cv_y.get(rating))
@@ -76,7 +77,8 @@ def prepare_rating_cats(binned_ratings):
     y = np.array(list(transform_cat(binned_ratings)))
     return y
 
-y = prepare_rating_cats(interest_score_cat)
+cv_y = prepare_cv(interest_score_cat)
+y = prepare_rating_cats(interest_score_cat, cv_y)
 X_train, X_test, y_train, y_test = sklearn.cross_validation.train_test_split(X, y, test_size = 0.2, random_state = 1)
 
 EMBEDDING_SIZE = 50
