@@ -621,9 +621,10 @@ class SonnetWriter(object):
 
     def force_line(self, template):
     # Used to force inclusion of a particular template, for building sample size.
-        new_lines = self.match_transitions(template)
-        if new_lines and len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
-            self.add_lines(new_lines)
+        if template not in self.lines:
+            new_lines = self.match_transitions(template)
+            if new_lines and len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
+                self.add_lines(new_lines)
 
 
     def arrange_lines(self):
@@ -713,6 +714,7 @@ class SonnetWriter(object):
     def reset(self):
         logging.info("Resetting...")
         self.lines = []
+        self.line_groups = []
         self.current_poem.reset()
         self.vocab.used = []
         for template in self.template_pool:
