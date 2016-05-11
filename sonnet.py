@@ -564,22 +564,25 @@ class SonnetWriter(object):
 
     def __init__(self, vocab):
         self.vocab = vocab
+        self.lines, self.line_groups = [], []
 
     def load_templates(self, filename):
         self.template_pool = TemplateReader(filename).read()
 
     def pick_lines(self):
-        self.lines, self.line_groups = [], []
         while len(self.lines) < sum(self.current_poem.section_lengths):
             available_templates = [template for template in self.template_pool if template not in self.lines]
             new_template = random.choice(available_templates)
             new_lines = self.match_transitions(new_template)
             if new_lines:
                 if len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
-                    self.lines.extend(new_lines)
-                    self.line_groups.append(new_lines)
-                    new_lines[0].sentence_start = True
-                    new_lines[-1].sentence_end = True
+                    self.add_lines(new_lines)
+
+    def add_lines(self, lines):
+        self.lines.extend(lines)
+        self.line_groups.append(lines)
+        lines[0].sentence_start = True
+        lines[-1].sentence_end = True
 
     def match_transitions(self, start_template):
         complete_sentence = [start_template]
@@ -604,6 +607,12 @@ class SonnetWriter(object):
                     "No {} match found for template: {}".format(start_template.outro_required, start_template.raw_text))
                 return False
         return complete_sentence
+
+    def force_line(self, template):
+    # Used to force inclusion of a particular template, for building sample size.
+        new_lines = self.match_transitions(template)
+        if new_lines and len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
+            self.add_lines(new_lines)
 
 
     def arrange_lines(self):

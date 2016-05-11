@@ -345,6 +345,14 @@ class TestSonnetWriter(object):
             for blank in template.blanks:
                 eq_(blank.collection_prob, 0.6)
 
+    def test_force_line(self):
+        self.sw.force_line(templates[0])
+
+        ok_(templates[0] in self.sw.lines)
+
+        self.sw.force_line(templates[11])
+
+        ok_(templates[11] in self.sw.lines)
 
 class TestCollectionReader(object):
     def __init__(self):
