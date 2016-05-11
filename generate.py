@@ -1,5 +1,6 @@
 # Author: Russell Williams
 # Email: russell.d.williams@gmail.com
+# Copyright 2016
 
 # Generates sonnets in bulk using sonnet.py.
 

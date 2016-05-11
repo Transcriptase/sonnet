@@ -1,5 +1,6 @@
 # Author: Russell Williams
 # Email: russell.d.williams@gmail.com
+# Copyright 2016
 
 # Attempt at automated sonnet generation
 

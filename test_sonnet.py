@@ -1,5 +1,6 @@
 # Author: Russell Williams
 # Email: russell.d.williams@gmail.com
+# Copyright 2016
 
 # Test cases for sonnet.py
 
