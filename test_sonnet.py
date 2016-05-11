@@ -66,6 +66,10 @@ class TestWord(object):
         c.syl_count()
         eq_(c.syl_string, "ususu")
 
+        d = snt.Word("although")
+        d.syl_count()
+        eq_(d.syl_string, "us")
+
     def test_last_sounds(self):
         a = snt.Word("dog")
         a.find_last_sounds()

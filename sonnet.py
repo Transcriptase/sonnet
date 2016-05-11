@@ -98,9 +98,20 @@ class Word(object):
         if len(syl_string) == 1:
             stresses.append("x")
         else:
-            for syl in syl_string:
-                if syl > 0:
+            previous_syls, syls, next_syls = tee(syl_string, 3)
+            next_syls = chain(islice(next_syls, 1, None), [None])
+            previous_syls = chain([None], previous_syls)
+            linked_syls = izip(previous_syls, syls, next_syls)
+            for prev, syl, next in linked_syls:
+                if syl == 1:
                     stresses.append("s")
+                elif syl == 2:
+                    # For secondary stress, it's unstressed if next to a primary stress
+                    # and stressed otherwise
+                    if next == 1 or prev == 1:
+                        stresses.append("u")
+                    else:
+                        stresses.append("s")
                 else:
                     stresses.append("u")
         return "".join(stresses)
