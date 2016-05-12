@@ -51,8 +51,6 @@ similar_sounds = {"EH": ["IH"],
                   "ZH": ["JH", "SH"],
                   "JH": ["ZH", "SH"],
                   "SH": ["ZH", "JH"],
-                  "M": ["N"],
-                  "N": ["M"],
                   "Z": ["S"],
                   "S": ["Z"]
 }
