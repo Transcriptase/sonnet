@@ -53,8 +53,8 @@ similar_sounds = {"EH": ["IH"],
                   "SH": ["ZH", "JH"],
                   "M": ["N"],
                   "N": ["M"],
-                  "D": ["T"],
-                  "T": ["D"]
+                  "Z": ["S"],
+                  "S": ["Z"]
 }
 
 class Word(object):
@@ -156,14 +156,27 @@ class Word(object):
         other_word.find_last_sounds()
         for other_sound in other_word.last_sounds:
             for this_sound in self.last_sounds:
-                for this_symbol, other_symbol in zip(this_sound, other_sound):
-                    if this_symbol != other_symbol:
-                        if this_symbol in similar_sounds:
-                            if other_symbol not in similar_sounds[this_symbol]:
-                                return False
+                if this_sound == other_sound or self.slant_rhyme(this_sound, other_sound):
+                    return True
+        return False
+
+    def slant_rhyme(self, sound1, sound2):
+        if len(sound1) == len(sound2):
+            for sym1, sym2 in zip(sound1, sound2):
+                if sym1 == sym2:
+                    continue
+                else:
+                    if sym1 in similar_sounds:
+                        if sym2 in similar_sounds[sym1]:
+                            continue
                         else:
                             return False
+                    else:
+                        return False
             return True
+        else:
+            return False
+
 
 
 class Line(object):
@@ -494,7 +507,7 @@ class Vocab(object):
     words for each part of speech, and stores the results so
     the slow lookup only happens once."""
 
-    def __init__(self, common_depth=1000, uncommon_depth=20000):
+    def __init__(self, common_depth=2000, uncommon_depth=20000):
         logging.info("Initializing vocabulary...")
         logging.info("Loading Brown corpus...")
         self.corpus = nltk.corpus.brown.tagged_words()
@@ -558,12 +571,9 @@ class Vocab(object):
         self.collection_pool = {}
 
     def rhyming_words(self, source_word, pos_tag):
-        rhymes = [word for word in self.common_words(pos_tag) if source_word.rhymes_with(Word(word))]
+        rhymes = [word for word in self.uncommon_words(pos_tag) if source_word.rhymes_with(Word(word))]
         if not rhymes:
-            logging.debug("No common rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
-            rhymes = [word for word in self.uncommon_words(pos_tag) if source_word.rhymes_with(Word(word))]
-            if not rhymes:
-                logging.debug("No uncommon rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
+            logging.debug("No uncommon rhymes found for \'{}\' in {}".format(source_word.text, pos_tag))
         return rhymes
 
     def uncommon_words(self, tag):
