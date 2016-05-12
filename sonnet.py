@@ -40,6 +40,23 @@ stressed_syllable_marks = re.compile("1|2")
 
 # Create the regular expression recognizing CMU syllable stress marks
 
+similar_sounds = {"EH": ["IH"],
+                  "IH": ["EH"],
+                  "AA": ["AO"],
+                  "AO": ["AA"],
+                  "UH": ["AH"],
+                  "AH": ["UH"],
+                  "DH": ["TH"],
+                  "TH": ["DH"],
+                  "ZH": ["JH", "SH"],
+                  "JH": ["ZH", "SH"],
+                  "SH": ["ZH", "JH"],
+                  "M": ["N"],
+                  "N": ["M"],
+                  "D": ["T"],
+                  "T": ["D"]
+}
+
 class Word(object):
     """A word: a poem's elemental cell.
     Count syllables. Find stresses. Do it well."""
@@ -127,7 +144,7 @@ class Word(object):
             self.last_sounds.append(self.last_sound(self.pron))
         else:
             self.last_sounds = [self.last_sound(pron) for pron in self.pron if self.last_sound(pron) is not None]
-            # Some words have totally unstressed pronounciations, which leads them returning "None" for last sound
+            # Some words have totally unstressed pronunciations, which leads them returning "None" for last sound
             # Then, if you get two, you get incorrect rhymes as None matches None.
             # Have to filter them out.
 
@@ -137,10 +154,16 @@ class Word(object):
         # Prevent "rhyming" the same word.
         self.find_last_sounds()
         other_word.find_last_sounds()
-        for sound in other_word.last_sounds:
-            if sound in self.last_sounds:
-                return True
-        return False
+        for other_sound in other_word.last_sounds:
+            for this_sound in self.last_sounds:
+                for this_symbol, other_symbol in zip(this_sound, other_sound):
+                    if this_symbol != other_symbol:
+                        if this_symbol in similar_sounds:
+                            if other_symbol not in similar_sounds[this_symbol]:
+                                return False
+                        else:
+                            return False
+            return True
 
 
 class Line(object):
