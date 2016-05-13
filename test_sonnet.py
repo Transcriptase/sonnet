@@ -1,5 +1,21 @@
 # Author: Russell Williams
-# Email: ruwilliams@genedx.com
+# Email: russell.d.williams@gmail.com
+# Copyright 2016
+
+# Test cases for sonnet.py
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from nose.tools import *
 import sonnet as snt
@@ -49,6 +65,10 @@ class TestWord(object):
         c = snt.Word("proprietary")
         c.syl_count()
         eq_(c.syl_string, "ususu")
+
+        d = snt.Word("although")
+        d.syl_count()
+        eq_(d.syl_string, "us")
 
     def test_last_sounds(self):
         a = snt.Word("dog")
@@ -329,6 +349,14 @@ class TestSonnetWriter(object):
             for blank in template.blanks:
                 eq_(blank.collection_prob, 0.6)
 
+    def test_force_line(self):
+        self.sw.force_line(templates[0])
+
+        ok_(templates[0] in self.sw.lines)
+
+        self.sw.force_line(templates[11])
+
+        ok_(templates[11] in self.sw.lines)
 
 class TestCollectionReader(object):
     def __init__(self):

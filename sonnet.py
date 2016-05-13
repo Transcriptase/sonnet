@@ -1,7 +1,21 @@
 # Author: Russell Williams
 # Email: russell.d.williams@gmail.com
+# Copyright 2016
 
 # Attempt at automated sonnet generation
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import nltk
 import logging
@@ -84,9 +98,20 @@ class Word(object):
         if len(syl_string) == 1:
             stresses.append("x")
         else:
-            for syl in syl_string:
-                if syl > 0:
+            previous_syls, syls, next_syls = tee(syl_string, 3)
+            next_syls = chain(islice(next_syls, 1, None), [None])
+            previous_syls = chain([None], previous_syls)
+            linked_syls = izip(previous_syls, syls, next_syls)
+            for prev, syl, next in linked_syls:
+                if syl == 1:
                     stresses.append("s")
+                elif syl == 2:
+                    # For secondary stress, it's unstressed if next to a primary stress
+                    # and stressed otherwise
+                    if next == 1 or prev == 1:
+                        stresses.append("u")
+                    else:
+                        stresses.append("s")
                 else:
                     stresses.append("u")
         return "".join(stresses)
@@ -550,22 +575,25 @@ class SonnetWriter(object):
 
     def __init__(self, vocab):
         self.vocab = vocab
+        self.lines, self.line_groups = [], []
 
     def load_templates(self, filename):
         self.template_pool = TemplateReader(filename).read()
 
     def pick_lines(self):
-        self.lines, self.line_groups = [], []
         while len(self.lines) < sum(self.current_poem.section_lengths):
             available_templates = [template for template in self.template_pool if template not in self.lines]
             new_template = random.choice(available_templates)
             new_lines = self.match_transitions(new_template)
             if new_lines:
                 if len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
-                    self.lines.extend(new_lines)
-                    self.line_groups.append(new_lines)
-                    new_lines[0].sentence_start = True
-                    new_lines[-1].sentence_end = True
+                    self.add_lines(new_lines)
+
+    def add_lines(self, lines):
+        self.lines.extend(lines)
+        self.line_groups.append(lines)
+        lines[0].sentence_start = True
+        lines[-1].sentence_end = True
 
     def match_transitions(self, start_template):
         complete_sentence = [start_template]
@@ -590,6 +618,13 @@ class SonnetWriter(object):
                     "No {} match found for template: {}".format(start_template.outro_required, start_template.raw_text))
                 return False
         return complete_sentence
+
+    def force_line(self, template):
+    # Used to force inclusion of a particular template, for building sample size.
+        if template not in self.lines:
+            new_lines = self.match_transitions(template)
+            if new_lines and len(self.lines) + len(new_lines) <= sum(self.current_poem.section_lengths):
+                self.add_lines(new_lines)
 
 
     def arrange_lines(self):
@@ -679,6 +714,7 @@ class SonnetWriter(object):
     def reset(self):
         logging.info("Resetting...")
         self.lines = []
+        self.line_groups = []
         self.current_poem.reset()
         self.vocab.used = []
         for template in self.template_pool:
