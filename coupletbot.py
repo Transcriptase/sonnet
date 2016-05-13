@@ -76,12 +76,14 @@ with open(filename, "wb") as f:
 couplets.sections.sort(key=lambda x: x.human * x.interesting)
 couplets.sections.reverse()
 
+
 auth = tweepy.OAuthHandler(C_KEY, C_SECRET)
 auth.set_access_token(A_TOKEN, A_TOKEN_SECRET)
 api = tweepy.API(auth)
 
-NUM_TO_TWEET = 3
 
-for couplet in couplets.sections[:NUM_TO_TWEET]:
+NUM_TO_TWEET = 4
+
+for couplet in couplets.sections[-NUM_TO_TWEET]:
     api.update_status(couplet.text)
     time.sleep(30)

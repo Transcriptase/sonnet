@@ -25,14 +25,7 @@ import sklearn
 import glob
 
 ### Load training data
-rated_batches = glob.glob("rated*.pickle")
-rated_sonnets = []
 
-for batch in rated_batches:
-    with open(batch, "r") as f:
-        rated_sonnets.extend(pickle.load(f))
-
-cv = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
 
 
 # Chosen because of sparse nature of data, but don't want to use the
@@ -56,23 +49,12 @@ def bin_rating(rating, low_break, high_break):
         return "high"
 
 
-seqs = [convert_to_sequence(section) for sonnet in rated_sonnets for section in sonnet.sections]
-human_score_cat = [bin_rating(section.human, 4, 6) for sonnet in rated_sonnets for section in sonnet.sections]
-interest_score_cat = [bin_rating(section.interesting, 4, 7) for sonnet in rated_sonnets for section in sonnet.sections]
-offense_score_cat = [bin_rating(section.offensive, 1, 4) for sonnet in rated_sonnets for section in sonnet.sections]
-
-for seq in seqs:
-    for item in seq:
-        cv.add(item)
-cv.freeze()
-
-n_words = len(cv._mapping)
-MAX_SEQUENCE_LENGTH = max([len(seq) for seq in seqs])
 
 
 # Make each seq into a vector of indexes
 def transform(seqs):
     for seq in seqs:
+        MAX_SEQUENCE_LENGTH = max([len(seq) for seq in seqs])
         choice_ids = np.zeros(MAX_SEQUENCE_LENGTH, np.int64)
         for index, choice in enumerate(seq):
             if index >= MAX_SEQUENCE_LENGTH:
@@ -126,6 +108,28 @@ def rnn_model(x, y):
     return skflow.models.logistic_regression(encoding, y)
 
 if __name__ == "__main__":
+    rated_batches = glob.glob("rated*.pickle")
+    rated_sonnets = []
+
+    for batch in rated_batches:
+        with open(batch, "r") as f:
+            rated_sonnets.extend(pickle.load(f))
+
+    cv = skflow.preprocessing.categorical_vocabulary.CategoricalVocabulary()
+    seqs = [convert_to_sequence(section) for sonnet in rated_sonnets for section in sonnet.sections]
+    human_score_cat = [bin_rating(section.human, 4, 6) for sonnet in rated_sonnets for section in sonnet.sections]
+    interest_score_cat = [bin_rating(section.interesting, 4, 7) for sonnet in rated_sonnets for section in
+                          sonnet.sections]
+    offense_score_cat = [bin_rating(section.offensive, 1, 4) for sonnet in rated_sonnets for section in sonnet.sections]
+
+    for seq in seqs:
+        for item in seq:
+            cv.add(item)
+    cv.freeze()
+
+    n_words = len(cv._mapping)
+    MAX_SEQUENCE_LENGTH = max([len(seq) for seq in seqs])
+
     X = np.array(list(transform(seqs)))
     cv_y = prepare_cv(interest_score_cat)
     y = prepare_rating_cats(interest_score_cat, cv_y)
