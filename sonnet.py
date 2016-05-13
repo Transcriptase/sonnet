@@ -505,7 +505,7 @@ class Vocab(object):
     words for each part of speech, and stores the results so
     the slow lookup only happens once."""
 
-    def __init__(self, common_depth=2000, uncommon_depth=20000):
+    def __init__(self, common_depth=1500, uncommon_depth=20000):
         logging.info("Initializing vocabulary...")
         logging.info("Loading Brown corpus...")
         self.corpus = nltk.corpus.brown.tagged_words()
@@ -525,10 +525,15 @@ class Vocab(object):
         self.collection_pool = {}
         self.uncommon_tag_words = {}
         self.used = []
+        # Words in the dictionary that I don't want to use, for various reasons:
+        # Pronounced abbreviations, irregular plurals whose rhyming possibilities make them
+        # show up too much, and some outright slurs.
+        # Content warning: Some unpleasant words coming up, so they can be excluded from the output
+        # Obviously not comprehensive, but right now I don't see other outright slurs showing up
+        # in the output so I haven't tried to list them exhaustively.
         self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers",
-                          "gay"]
-        # Words in the dictionary that I don't want to use,
-        # Unnatural sounding or... well.
+                          "gay", "DU", "buffalo", "deer", "B", "DA"]
+
 
     def find_common_words(self, tag, depth):
         logging.debug("Initializing {} to depth {}...".format(tag, depth))
