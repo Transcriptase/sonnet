@@ -22,7 +22,7 @@
 import sonnet as snt
 from tensorflow.contrib import skflow
 import model
-import numpy as np
+from model import ModelConfig
 import logging
 import tweepy
 from secrets import *
@@ -50,10 +50,10 @@ with open("models/model_config_20160513.pickle") as f:
     config = pickle.load(f)
 logging.info("Done.")
 logging.info("Loading humanity model...")
-hum_classifier = skflow.TensorFlowEstimator.restore("models/human_classifier_20160513")
+hum_classifier = skflow.TensorFlowEstimator.restore("models/hum_classifier_20160513")
 logging.info("Done.")
 logging.info("Loading interest model...")
-int_classifier = skflow.TensorFlowEstimator.restore("models/interest_classifier_20160513")
+int_classifier = skflow.TensorFlowEstimator.restore("models/int_classifier_20160513")
 logging.info("Done.")
 
 
