@@ -193,7 +193,7 @@ class Line(object):
     def make_word_list(self):
         word_list = nltk.word_tokenize(self.text)
         # Combine contractions
-        contractions = ["n't", "'s", "'m", "'re", "'ll"]
+        contractions = ["n't", "'s", "'m", "'re", "'ll", "'d"]
         for contraction in contractions:
             while contraction in word_list:
                 cont_index = word_list.index(contraction)
