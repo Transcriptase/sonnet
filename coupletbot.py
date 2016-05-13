@@ -34,16 +34,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-logging.info("Loading humanity model...")
-hum_classifier = skflow.TensorFlowEstimator.restore("models/human_classifier_20160510")
-logging.info("Done.")
-logging.info("Loading interest model...")
-int_classifier = skflow.TensorFlowEstimator.restore("models/interest_classifier_20160510")
-logging.info("Done.")
-
-HUMAN_REV_MAPPING = ['<UNK>', 'low', 'moderate', 'high']
-INTEREST_REV_MAPPING = ['<UNK>', 'low', 'moderate', 'high']
-
+# Generate couplets:
 vocab = snt.Vocab()
 sw = snt.SonnetWriter(vocab)
 sw.load_templates("line_templates.csv")
@@ -53,16 +44,29 @@ couplets = snt.HeroicCouplets(12)
 
 sw.new_poem(couplets)
 
+# Load rating model:
+logging.info("Loading model config...")
+with open("models/model_config_20160513.pickle") as f:
+    config = pickle.load(f)
+logging.info("Done.")
+logging.info("Loading humanity model...")
+hum_classifier = skflow.TensorFlowEstimator.restore("models/human_classifier_20160513")
+logging.info("Done.")
+logging.info("Loading interest model...")
+int_classifier = skflow.TensorFlowEstimator.restore("models/interest_classifier_20160513")
+logging.info("Done.")
+
+
 seqs = [model.convert_to_sequence(section) for section in couplets.sections]
-X = np.array(list(model.transform(seqs)))
+x = config.transform_seqs(seqs)
 
 
 def sum_ratings(probs):
     return sum([prob * rating for prob, rating in zip(probs, range(4))])
 
-
-hum_ratings = [sum_ratings(probs) * 3 for probs in hum_classifier.predict_proba(X)]
-int_ratings = [sum_ratings(probs) * 3 for probs in int_classifier.predict_proba(X)]
+# Rate each couplet and sort by ratings:
+hum_ratings = [sum_ratings(probs) * 3 for probs in hum_classifier.predict_proba(x)]
+int_ratings = [sum_ratings(probs) * 3 for probs in int_classifier.predict_proba(x)]
 
 for section, hum_rat, int_rat in zip(couplets.sections, hum_ratings, int_ratings):
     section.human = hum_rat
@@ -76,13 +80,13 @@ with open(filename, "wb") as f:
 couplets.sections.sort(key=lambda x: x.human * x.interesting)
 couplets.sections.reverse()
 
-
+# Tweet 2 best rated couplets
 auth = tweepy.OAuthHandler(C_KEY, C_SECRET)
 auth.set_access_token(A_TOKEN, A_TOKEN_SECRET)
 api = tweepy.API(auth)
 
 
-NUM_TO_TWEET = 4
+NUM_TO_TWEET = 2
 
 for couplet in couplets.sections[-NUM_TO_TWEET]:
     api.update_status(couplet.text)
