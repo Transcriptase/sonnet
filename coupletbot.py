@@ -86,3 +86,4 @@ NUM_TO_TWEET = 4
 
 for couplet in couplets.sections[-NUM_TO_TWEET]:
     api.update_status(couplet.text)
+    time.sleep(30)
