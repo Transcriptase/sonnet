@@ -3,6 +3,10 @@ from tensorflow.contrib import skflow
 import model
 import numpy as np
 import logging
+from secrets import *
+import tweepy
+import pickle
+import datetime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -42,3 +46,15 @@ for section, hum_rat, int_rat in zip(couplets.sections, hum_ratings, int_ratings
 
 couplets.sections.sort(key= lambda x: x.human*x.interesting)
 
+timestamp = datetime.now()
+pickle.dump(couplets, "unrated_couplets_batch_().pickle".format(timestamp.strftime("%Y%m%d-%H%M")))
+
+auth = tweepy.OAuthHandler(C_KEY, C_SECRET)
+auth.set_access_token(A_TOKEN, A_TOKEN_SECRET)
+api = tweepy.API(auth)
+
+
+NUM_TO_TWEET = 4
+
+for couplet in couplets.sections[-NUM_TO_TWEET]:
+    api.update_status(couplet.text)
