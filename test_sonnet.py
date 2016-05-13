@@ -226,7 +226,7 @@ class TestLine(object):
 class TestTemplate(object):
     def test_list_maker(self):
         nouns = vocab.common_words("NN")
-        eq_(len(nouns), 992)
+        eq_(len(nouns), 1485)
         ok_("time" in nouns)
 
     def test_blank_fill(self):
