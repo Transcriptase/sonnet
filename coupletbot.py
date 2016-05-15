@@ -73,7 +73,7 @@ for section, hum_rat, int_rat in zip(couplets.sections, hum_ratings, int_ratings
     section.interesting = int_rat
 
 timestamp = datetime.datetime.now()
-filename = "unrated_couplet_batch_{}.pickle".format(timestamp.strftime("%Y%m%d-%H%H"))
+filename = "unrated_couplet_batch_{}.pickle".format(timestamp.strftime("%Y%m%d-%H%M"))
 with open(filename, "wb") as f:
     pickle.dump(couplets, f)
 
@@ -88,6 +88,6 @@ api = tweepy.API(auth)
 
 NUM_TO_TWEET = 2
 
-for couplet in couplets.sections[-NUM_TO_TWEET]:
+for couplet in couplets.sections[:NUM_TO_TWEET]:
     api.update_status(couplet.text)
     time.sleep(30)
