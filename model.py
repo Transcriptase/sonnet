@@ -24,6 +24,7 @@ import tensorflow as tf
 import sklearn
 import glob
 import datetime
+from sonnet import Poem
 
 def convert_to_sequence(section):
     sequence = []
@@ -90,7 +91,11 @@ if __name__ == "__main__":
 
     for batch in rated_batches:
         with open(batch, "r") as f:
-            rated_sonnets.extend(pickle.load(f))
+            contents = pickle.load(f)
+            if isinstance(contents, list):
+                rated_sonnets.extend(contents)
+            elif isinstance(contents, Poem):
+                rated_sonnets.append(contents)
 
     seqs = [convert_to_sequence(section) for sonnet in rated_sonnets for section in sonnet.sections]
     human_score_cat = [bin_rating(section.human, 4, 6) for sonnet in rated_sonnets for section in sonnet.sections]
@@ -113,7 +118,7 @@ if __name__ == "__main__":
         pickle.dump(config, f)
 
     x_train, x_test, int_y_train, int_y_test = sklearn.cross_validation.train_test_split(x, int_y,
-                                                                                         test_size=0.2, random_state=1)
+                                                                                         test_size=100, random_state=1)
 
 
     def rnn_model(x, y):
@@ -146,7 +151,7 @@ if __name__ == "__main__":
     classifier.save("models/int_classifier_{}".format(datestamp))
 
     x_train, x_test, hum_y_train, hum_y_test = sklearn.cross_validation.train_test_split(x, hum_y,
-                                                                                         test_size=0.2, random_state=1)
+                                                                                         test_size=100, random_state=1)
 
     classifier = skflow.TensorFlowEstimator(model_fn=rnn_model, n_classes=4, steps=1000, optimizer="Adam",
                                             learning_rate=0.01, continue_training=True)

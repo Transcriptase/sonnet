@@ -46,14 +46,14 @@ sw.new_poem(couplets)
 
 # Load rating model:
 logging.info("Loading model config...")
-with open("models/model_config_20160513.pickle") as f:
+with open("models/model_config_20160520.pickle") as f:
     config = pickle.load(f)
 logging.info("Done.")
 logging.info("Loading humanity model...")
-hum_classifier = skflow.TensorFlowEstimator.restore("models/hum_classifier_20160513")
+hum_classifier = skflow.TensorFlowEstimator.restore("models/hum_classifier_20160520")
 logging.info("Done.")
 logging.info("Loading interest model...")
-int_classifier = skflow.TensorFlowEstimator.restore("models/int_classifier_20160513")
+int_classifier = skflow.TensorFlowEstimator.restore("models/int_classifier_20160520")
 logging.info("Done.")
 
 

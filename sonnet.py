@@ -24,6 +24,7 @@ import random
 import csv
 import glob
 from itertools import tee, islice, chain, izip
+from nltk.corpus import wordnet as wn
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -475,13 +476,20 @@ class CollectionReader(object):
 class Collection(object):
     def __init__(self, tagged_words):
         self.tagged_words = tagged_words
+        self.words = [tagged_word[0] for word in self.tagged_words]
         self.id = None
+        self.word_meanings = None
 
     def check(self):
         for word, pos_tag in self.tagged_words:
             if word.lower() not in dictionary:
                 print ("{} not found in CMU dict. Enter custom pronunciation in file.".format(word))
 
+    def lookup(self):
+        self.word_meanings = [wn.synsets(word) for word in self.words]
+
+    def max_similarity(self, synset):
+        max([synset.path_similarity(meaning) for word in self.word_meanings for meaning in word])
 
 class CollectionManager(object):
     def __init__(self):
@@ -532,7 +540,7 @@ class Vocab(object):
         # Obviously not comprehensive, but right now I don't see other outright slurs showing up
         # in the output so I haven't tried to list them exhaustively.
         self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers",
-                          "gay", "DU", "buffalo", "deer", "B", "DA"]
+                          "gay", "DU", "buffalo", "deer", "B", "DA", "SE", "MS", "V", "US", "CBS"]
 
 
     def find_common_words(self, tag, depth):
