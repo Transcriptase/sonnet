@@ -476,7 +476,7 @@ class CollectionReader(object):
 class Collection(object):
     def __init__(self, tagged_words):
         self.tagged_words = tagged_words
-        self.words = [tagged_word[0] for word in self.tagged_words]
+        self.words = [tagged_word[0] for tagged_word in self.tagged_words]
         self.id = None
         self.word_meanings = None
 
@@ -533,15 +533,15 @@ class Vocab(object):
         self.collection_pool = {}
         self.uncommon_tag_words = {}
         self.used = []
-        # Words in the dictionary that I don't want to use, for various reasons:
-        # Pronounced abbreviations, irregular plurals whose rhyming possibilities make them
-        # show up too much, and some outright slurs.
-        # Content warning: Some unpleasant words coming up, so they can be excluded from the output
-        # Obviously not comprehensive, but right now I don't see other outright slurs showing up
-        # in the output so I haven't tried to list them exhaustively.
-        self.blacklist = ["TV", "Q", "C", "UN", "n", "A", "T", "queers", "faggot", "faggots", "nigger", "niggers",
-                          "gay", "DU", "buffalo", "deer", "B", "DA", "SE", "MS", "V", "US", "CBS"]
+        self.blacklist = []
+        logging.info("Initializing blacklist...")
+        self.read_blacklist()
+        logging.info("Done.")
 
+
+    def read_blacklist(self, blacklist_fn = "blacklist.csv"):
+        with open(blacklist_fn, "r") as f:
+            self.blacklist = [word.strip() for word in f]
 
     def find_common_words(self, tag, depth):
         logging.debug("Initializing {} to depth {}...".format(tag, depth))
