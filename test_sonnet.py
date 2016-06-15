@@ -226,7 +226,7 @@ class TestLine(object):
 class TestTemplate(object):
     def test_list_maker(self):
         nouns = vocab.common_words("NN")
-        eq_(len(nouns), 1485)
+        eq_(len(nouns), 1483)
         ok_("time" in nouns)
 
     def test_blank_fill(self):
@@ -406,3 +406,41 @@ class TestVocab(object):
 
         ok_("amber" not in pool)
         ok_("hungry" in pool)
+
+
+class Test_Prompter(object):
+    def setup(self):
+        self.p = snt.Prompter(vocab)
+
+    def test_process_input(self):
+        self.p.user_prompt = "waves"
+        self.p.process_input()
+
+        eq_(self.p.user_prompt_words, ["waves"])
+        eq_(len(self.p.prompt_meanings), 1)
+        ok_(isinstance(self.p.prompt_meanings[0], list))
+        ok_(isinstance(self.p.prompt_meanings[0][0], snt.nltk.corpus.reader.wordnet.Synset))
+
+        self.p.user_prompt = "bus driver"
+        self.p.process_input()
+
+        eq_(self.p.user_prompt_words, ["bus", "driver"])
+        eq_(len(self.p.prompt_meanings), 2)
+        ok_(isinstance(self.p.prompt_meanings[0], list))
+        ok_(isinstance(self.p.prompt_meanings[0][0], snt.nltk.corpus.reader.wordnet.Synset))
+
+
+    def test_pick_collection(self):
+        self.p.user_prompt = "waves"
+        self.p.process_input()
+        match = self.p.pick_collection()
+
+        ok_(isinstance(match, snt.Collection))
+        eq_(match.id, "beach")
+
+        self.p.user_prompt = "violin"
+        self.p.process_input()
+        match = self.p.pick_collection()
+
+        ok_(isinstance(match, snt.Collection))
+        eq_(match_id, "music")

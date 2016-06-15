@@ -488,8 +488,13 @@ class Collection(object):
     def lookup(self):
         self.word_meanings = [wn.synsets(word) for word in self.words]
 
-    def max_similarity(self, synset):
-        max([synset.path_similarity(meaning) for word in self.word_meanings for meaning in word])
+    def max_similarities(self, synset, depth):
+        if not self.word_meanings:
+            self.lookup()
+        similarities = [synset.path_similarity(meaning) for word in self.word_meanings for meaning in word]
+        similarities = [match for match in similarities if match]
+        maxes = sorted(similarities)[:depth]
+        return maxes
 
 class CollectionManager(object):
     def __init__(self):
@@ -612,6 +617,32 @@ class Vocab(object):
         coll_ids = random.sample(self.collections.keys(), number)
         for coll_id in coll_ids:
             self.add_collection(coll_id)
+
+class Prompter(object):
+    def __init__(self, vocab):
+        self.vocab = vocab
+        self.user_prompt = None
+        self.user_prompt_words = None
+
+    def get_input(self):
+        prompt_phrase = "Please enter the prompt:"
+        self.user_prompt = raw_input(prompt_phrase)
+
+    def process_input(self):
+        self.user_prompt_words = self.user_prompt.split()
+        self.prompt_meanings = [wn.synsets(word) for word in self.user_prompt_words]
+
+    def pick_collection(self):
+        max_sim = 0
+        best_match = None
+        for meaning in self.prompt_meanings:
+            for synset in meaning:
+                for collection in self.vocab.collections.values():
+                    match_strength = sum(collection.max_similarities(synset, 3))
+                    if match_strength > max_sim:
+                        max_sim = match_strength
+                        best_match = collection
+        return best_match
 
 
 class SonnetWriter(object):
